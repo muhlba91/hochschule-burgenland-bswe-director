@@ -1,0 +1,21 @@
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:d093aa3e30dbadd3efe1310db061a14da60299baff8450a17fe0ccc514a16639
+
+ARG CI_COMMIT_TIMESTAMP
+ARG CI_COMMIT_SHA
+ARG CI_COMMIT_TAG
+
+LABEL org.opencontainers.image.authors="Daniel Muehlbachler-Pietrzykowski <daniel.muehlbachler@niftyside.com>"
+LABEL org.opencontainers.image.vendor="Daniel Muehlbachler-Pietrzykowski"
+LABEL org.opencontainers.image.source="https://github.com/muhlba91/hochschule-burgenland-bswe-director"
+LABEL org.opencontainers.image.created="${CI_COMMIT_TIMESTAMP}"
+LABEL org.opencontainers.image.title="hochschule-burgenland-bswe-director"
+LABEL org.opencontainers.image.description="Director for managing game sessions."
+LABEL org.opencontainers.image.revision="${CI_COMMIT_SHA}"
+LABEL org.opencontainers.image.version="${CI_COMMIT_TAG}"
+
+USER 20000:20000
+COPY --chmod=555 hochschule-burgenland-bswe-director /opt/hochschule-burgenland-bswe-director
+
+EXPOSE 8080/tcp
+
+ENTRYPOINT ["/opt/hochschule-burgenland-bswe-director"]
