@@ -10,6 +10,11 @@ import (
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/cmd/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/cmd/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/health"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/http"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/websocket/dispatcher"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/cache"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/registry"
 )
 
 // Version and Gitsha of the current build.
@@ -28,8 +33,16 @@ func main() {
 
 	cfg := configuration.Init()
 
-	healthServer := health.NewServer(&cfg)
+	c := cache.NewCache(&cfg)
+	r := registry.NewRegistry()
+	d := dispatcher.NewDispatcher(c, r)
+	flows.Init(c, r)
+
+	healthServer := health.NewServer(&cfg, c)
 	healthServer.Start()
+
+	httpServer := http.NewServer(&cfg, d)
+	httpServer.Start()
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -38,4 +51,6 @@ func main() {
 	<-sig
 	logrus.Info("shutting down...")
 	healthServer.Stop()
+	httpServer.Stop()
+	c.Stop()
 }

@@ -1,4 +1,4 @@
-# Hochschule Burgenland - BSWE - Game Director
+# Hochschule Burgenland - BSWE - Director
 
 [![](https://img.shields.io/github/license/muhlba91/hochschule-burgenland-bswe-director?style=for-the-badge)](LICENSE.md)
 [![](https://img.shields.io/github/actions/workflow/status/muhlba91/hochschule-burgenland-bswe-director/verify.yml?style=for-the-badge)](https://github.com/muhlba91/hochschule-burgenland-bswe-director/actions/workflows/verify.yml)
@@ -8,7 +8,7 @@
 [![](https://img.shields.io/github/all-contributors/muhlba91/hochschule-burgenland-bswe-director?color=ee8449&style=for-the-badge)](#contributors)
 <a href="https://www.buymeacoffee.com/muhlba91" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="28" width="150"></a>
 
-Game Director is a Go-based service designed to manage game sessions.
+Flow Director is a Go-based service designed to manage flow sessions.
 
 //FIXME: update readme
 

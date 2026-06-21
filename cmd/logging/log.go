@@ -3,6 +3,7 @@ package logging
 import (
 	"os"
 
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -10,6 +11,7 @@ import (
 func Init() {
 	setLogLevel()
 	setLogFormat()
+	setRedisLogger()
 }
 
 // setLogFormat sets the log format based on the LOG_FORMAT environment variable.
@@ -37,4 +39,9 @@ func setLogLevel() {
 	default:
 		log.SetLevel(log.InfoLevel)
 	}
+}
+
+// setRedisLogger sets the Redis logger to use the LogrusWrapper, which implements the redis.Logger interface using logrus.
+func setRedisLogger() {
+	redis.SetLogger(&LogrusWrapper{})
 }

@@ -9,7 +9,7 @@ LABEL org.opencontainers.image.vendor="Daniel Muehlbachler-Pietrzykowski"
 LABEL org.opencontainers.image.source="https://github.com/muhlba91/hochschule-burgenland-bswe-director"
 LABEL org.opencontainers.image.created="${CI_COMMIT_TIMESTAMP}"
 LABEL org.opencontainers.image.title="hochschule-burgenland-bswe-director"
-LABEL org.opencontainers.image.description="Director for managing game sessions."
+LABEL org.opencontainers.image.description="Director for managing flow sessions."
 LABEL org.opencontainers.image.revision="${CI_COMMIT_SHA}"
 LABEL org.opencontainers.image.version="${CI_COMMIT_TAG}"
 

@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/cmd/configuration"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/cache"
 )
 
 // shutdownTimeout defines the duration for graceful shutdown of the health check server.
@@ -22,15 +23,19 @@ const readHeaderTimeout = 3 * time.Second
 type Server struct {
 	address string
 	server  *http.Server
+	cache   *cache.Cache
 }
 
 // NewServer creates a new health check server.
 // configuration: The configuration data for the server.
+// cache: The cache instance.
 func NewServer(
 	configuration *configuration.Data,
+	cache *cache.Cache,
 ) *Server {
 	return &Server{
 		address: fmt.Sprintf("%s:%d", configuration.HealthzHost, configuration.HealthzPort),
+		cache:   cache,
 	}
 }
 
