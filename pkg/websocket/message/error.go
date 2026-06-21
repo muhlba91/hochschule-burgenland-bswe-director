@@ -8,4 +8,7 @@ var (
 	ErrUnexpectedMessageType = errors.New("unexpected message type")
 	ErrInvalidPayload        = errors.New("invalid payload")
 	ErrSessionNotFound       = errors.New("session not found")
+	ErrSessionNotCreated     = errors.New("session not created")
+	ErrSessionNotJoined      = errors.New("session not joined")
+	ErrSessionFull           = errors.New("session full")
 )

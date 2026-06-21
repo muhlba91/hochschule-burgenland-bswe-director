@@ -47,7 +47,11 @@ func Handler(dispatcher *dispatcher.Dispatcher) echo.HandlerFunc {
 			for {
 				var msg message.Message
 				if errRead := wsjson.Read(ctx, conn, &msg); errRead != nil {
-					logrus.Errorf("websocket read failed: %v", errRead)
+					if websocket.CloseStatus(errRead) == -1 {
+						logrus.Errorf("websocket read failed: %v", errRead)
+					} else {
+						logrus.Infof("websocket closed by client: %v", errRead)
+					}
 					return
 				}
 				msgCh <- msg
@@ -70,6 +74,7 @@ func Handler(dispatcher *dispatcher.Dispatcher) echo.HandlerFunc {
 		for {
 			select {
 			case msg := <-msgCh:
+				logrus.Debugf("received message: %s", msg)
 				sid := dispatcher.Handle(ctx, conn, sessionID, msg)
 
 				if sid != nil {
@@ -79,6 +84,7 @@ func Handler(dispatcher *dispatcher.Dispatcher) echo.HandlerFunc {
 				}
 
 			case redisMsg := <-redisCh:
+				logrus.Debugf("received redis message: %s", redisMsg)
 				if errWrite := wsjson.Write(ctx, conn, redisMsg.Payload); errWrite != nil {
 					logrus.Errorf("websocket write failed: %v", errWrite)
 					return nil

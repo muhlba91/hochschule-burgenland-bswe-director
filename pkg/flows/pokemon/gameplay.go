@@ -1,7 +1,10 @@
 package pokemon
 
 import (
+	"fmt"
+
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/cache"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/registry"
 )
 
@@ -25,4 +28,14 @@ func NewGameplay(cache *cache.Cache, registry *registry.Registry) *Gameplay {
 
 // Init initializes the gameplay and registers all necessary components.
 func (gp *Gameplay) Init() {
+	registry.RegisterSessionGeneratorHandler(gp.Registry, gp.generateEventName(event.Create), gp.Create)
+	registry.RegisterSessionGeneratorHandler(gp.Registry, gp.generateEventName(event.Join), gp.Join)
+
+	registry.RegisterEventHandler(gp.Registry, gp.generateEventName(event.List), gp.List)
+}
+
+// Create represents the creation of a new Pokémon game.
+// event: The event type for the gameplay.
+func (gp *Gameplay) generateEventName(event event.Type) string {
+	return fmt.Sprintf("%s:%s", gp.Name, event)
 }
