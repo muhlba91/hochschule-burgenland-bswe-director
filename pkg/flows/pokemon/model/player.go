@@ -8,4 +8,6 @@ type Player struct {
 	URL string `json:"url" redis:"url"`
 	// Connected indicates whether the player is currently connected to the game session.
 	Connected bool `json:"connected" redis:"connected"`
+	// ConnectionID is the unique identifier for the player's connection.
+	ConnectionID *string `json:"connection_id" redis:"connection_id"`
 }

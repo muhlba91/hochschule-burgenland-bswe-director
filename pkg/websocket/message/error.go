@@ -10,5 +10,6 @@ var (
 	ErrSessionNotFound       = errors.New("session not found")
 	ErrSessionNotCreated     = errors.New("session not created")
 	ErrSessionNotJoined      = errors.New("session not joined")
+	ErrSessionDisconnected   = errors.New("session disconnected")
 	ErrSessionFull           = errors.New("session full")
 )

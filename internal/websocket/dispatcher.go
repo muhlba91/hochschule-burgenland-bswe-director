@@ -1,4 +1,4 @@
-package dispatcher
+package websocket
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/cache"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/registry"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/connection"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/message"
 )
 
@@ -31,10 +32,15 @@ func NewDispatcher(cache *cache.Cache, registry *registry.Registry) *Dispatcher 
 // Handle processes incoming WebSocket messages and dispatches them to the appropriate handlers based on the message type.
 // ctx: The context for managing request lifecycle.
 // conn: The WebSocket connection through which the message was received.
-// sessionID: The session ID associated with the WebSocket connection.
+// connData: The connection data associated with the WebSocket connection.
 // msg: The incoming message to be processed.
-func (d *Dispatcher) Handle(ctx context.Context, conn *websocket.Conn, sessionID string, msg message.Message) *string {
-	sid, rMsg := d.Registry.HandleEvent(ctx, msg.Event, sessionID, msg.Payload)
+func (d *Dispatcher) Handle(
+	ctx context.Context,
+	conn *websocket.Conn,
+	connData *connection.Data,
+	msg message.Message,
+) *string {
+	sid, rMsg := d.Registry.HandleEvent(ctx, msg.Event, connData, msg.Payload)
 	if rMsg != nil {
 		_ = wsjson.Write(ctx, conn, rMsg)
 	}

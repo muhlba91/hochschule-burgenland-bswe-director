@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/connection"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/message"
 )
 
 // EventHandlerFunc defines the function signature for handling events.
-type EventHandlerFunc func(context.Context, json.RawMessage, string) *message.Message
+type EventHandlerFunc func(context.Context, json.RawMessage, *connection.Data) *message.Message
 
 // SessionGeneratorEventHandlerFunc defines the function signature for handling session generation events.
-type SessionGeneratorEventHandlerFunc func(context.Context, json.RawMessage) (*string, *message.Message)
+type SessionGeneratorEventHandlerFunc func(context.Context, json.RawMessage, *connection.Data) (*string, *message.Message)
 
 // Registry holds the main logic and handlers.
 type Registry struct {
@@ -30,22 +31,22 @@ func NewRegistry() *Registry {
 // HandleEvent executes the event handler for a specific event type.
 // ctx: The context for managing request lifecycle.
 // eventType: The type of the event to handle.
-// sessionID: The ID of the session handling the event.
+// connectionData: The data associated with the websocket connection.
 // payload: The raw JSON payload of the event.
 func (r *Registry) HandleEvent(
 	ctx context.Context,
 	eventType string,
-	sessionID string,
+	connectionData *connection.Data,
 	payload json.RawMessage,
 ) (*string, *message.Message) {
 	sessionHandler, isSessionGenerator := r.sessionGeneratorHandlers[eventType]
 	if isSessionGenerator {
-		return sessionHandler(ctx, payload)
+		return sessionHandler(ctx, payload, connectionData)
 	}
 
 	eventHandler, isEventHandler := r.eventHandlers[eventType]
 	if isEventHandler {
-		msg := eventHandler(ctx, payload, sessionID)
+		msg := eventHandler(ctx, payload, connectionData)
 		return nil, msg
 	}
 
@@ -64,9 +65,9 @@ func (r *Registry) HandleEvent(
 func RegisterEventHandler[T any](
 	registry *Registry,
 	eventType string,
-	handleAction func(context.Context, *T, string) *message.Message,
+	handleAction func(context.Context, *T, *connection.Data) *message.Message,
 ) {
-	registry.eventHandlers[eventType] = func(ctx context.Context, raw json.RawMessage, sessionID string) *message.Message {
+	registry.eventHandlers[eventType] = func(ctx context.Context, raw json.RawMessage, connectionData *connection.Data) *message.Message {
 		var payload T
 		if err := json.Unmarshal(raw, &payload); err != nil {
 			errPayload, _ := json.Marshal(message.ErrInvalidPayload.Error())
@@ -76,7 +77,7 @@ func RegisterEventHandler[T any](
 			}
 		}
 
-		return handleAction(ctx, &payload, sessionID)
+		return handleAction(ctx, &payload, connectionData)
 	}
 }
 
@@ -88,9 +89,9 @@ func RegisterEventHandler[T any](
 func RegisterSessionGeneratorHandler[T any](
 	registry *Registry,
 	eventType string,
-	handleAction func(context.Context, *T) (*string, *message.Message),
+	handleAction func(context.Context, *T, *connection.Data) (*string, *message.Message),
 ) {
-	registry.sessionGeneratorHandlers[eventType] = func(ctx context.Context, raw json.RawMessage) (*string, *message.Message) {
+	registry.sessionGeneratorHandlers[eventType] = func(ctx context.Context, raw json.RawMessage, connectionData *connection.Data) (*string, *message.Message) {
 		var payload T
 		if err := json.Unmarshal(raw, &payload); err != nil {
 			errPayload, _ := json.Marshal(message.ErrInvalidPayload.Error())
@@ -100,6 +101,6 @@ func RegisterSessionGeneratorHandler[T any](
 			}
 		}
 
-		return handleAction(ctx, &payload)
+		return handleAction(ctx, &payload, connectionData)
 	}
 }

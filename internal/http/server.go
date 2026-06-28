@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/cmd/configuration"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/websocket/dispatcher"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/websocket"
 )
 
 // shutdownTimeout defines the duration for graceful shutdown of the echo server.
@@ -21,7 +21,7 @@ const shutdownTimeout = 5 * time.Second
 type Server struct {
 	Address    string
 	Server     *echo.Echo
-	Dispatcher *dispatcher.Dispatcher
+	Dispatcher *websocket.Dispatcher
 }
 
 // NewServer creates a new echo server.
@@ -29,7 +29,7 @@ type Server struct {
 // dispatcher: The websocket dispatcher instance.
 func NewServer(
 	configuration *configuration.Data,
-	dispatcher *dispatcher.Dispatcher,
+	dispatcher *websocket.Dispatcher,
 ) *Server {
 	s := &Server{
 		Address:    fmt.Sprintf("%s:%d", configuration.ServerHost, configuration.ServerPort),

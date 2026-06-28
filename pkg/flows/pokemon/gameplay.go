@@ -6,6 +6,7 @@ import (
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/cache"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/registry"
+	globalEvent "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/event"
 )
 
 // Gameplay represents a gameplay type.
@@ -32,6 +33,8 @@ func (gp *Gameplay) Init() {
 	registry.RegisterSessionGeneratorHandler(gp.Registry, gp.generateEventName(event.Join), gp.Join)
 
 	registry.RegisterEventHandler(gp.Registry, gp.generateEventName(event.List), gp.List)
+	registry.RegisterEventHandler(gp.Registry, string(globalEvent.Disconnect), gp.Disconnect)
+	registry.RegisterEventHandler(gp.Registry, string(globalEvent.ConnectionInformation), gp.ConnectionInformation)
 }
 
 // Create represents the creation of a new Pokémon game.

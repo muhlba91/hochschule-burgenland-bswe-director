@@ -11,4 +11,9 @@ var (
 
 	Created Type = "created"
 	Listing Type = "listing"
+	Joined  Type = "joined"
+
+	Started  Type = "started"
+	Paused   Type = "paused"
+	Finished Type = "finished"
 )

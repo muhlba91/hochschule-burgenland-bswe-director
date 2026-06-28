@@ -1,8 +1,9 @@
-//nolint:cyclop // Package websocket provides the websocket handler for the director application.
 package websocket
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/coder/websocket"
@@ -11,7 +12,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/websocket/dispatcher"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/connection"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/event"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/message"
 )
 
@@ -24,8 +26,8 @@ const pingTimeout = 5 * time.Second
 // Handler handles websocket requests.
 // dispatcher: The dispatcher for handling management and flow actions.
 //
-//nolint:gocognit // handler is complex due to the nature of websocket handling.
-func Handler(dispatcher *dispatcher.Dispatcher) echo.HandlerFunc {
+//nolint:gocognit,funlen // handler is complex due to the nature of websocket handling.
+func Handler(dispatcher *Dispatcher) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		conn, err := websocket.Accept(c.Response(), c.Request(), &websocket.AcceptOptions{
 			InsecureSkipVerify: true,
@@ -37,7 +39,12 @@ func Handler(dispatcher *dispatcher.Dispatcher) echo.HandlerFunc {
 		}
 		defer conn.Close(websocket.StatusInternalError, "")
 
+		connData := connection.NewData()
 		ctx := c.Request().Context()
+
+		defer func() {
+			handleDisconnect(ctx, dispatcher, conn, connData)
+		}()
 
 		readDone := make(chan struct{})
 		msgCh := make(chan message.Message)
@@ -58,13 +65,17 @@ func Handler(dispatcher *dispatcher.Dispatcher) echo.HandlerFunc {
 			}
 		}()
 
-		var sub *redis.PubSub
-		var redisCh <-chan *redis.Message
+		var flowSub *redis.PubSub
+		var flowCh <-chan *redis.Message
+		var directorSub *redis.PubSub
+		var directorCh <-chan *redis.Message
 
-		var sessionID string
 		defer func() {
-			if sub != nil {
-				_ = sub.Close()
+			if flowSub != nil {
+				_ = flowSub.Close()
+			}
+			if directorSub != nil {
+				_ = directorSub.Close()
 			}
 		}()
 
@@ -75,17 +86,47 @@ func Handler(dispatcher *dispatcher.Dispatcher) echo.HandlerFunc {
 			select {
 			case msg := <-msgCh:
 				logrus.Debugf("received message: %s", msg)
-				sid := dispatcher.Handle(ctx, conn, sessionID, msg)
+				sid := dispatcher.Handle(ctx, conn, connData, msg)
 
-				if sid != nil {
-					sessionID = *sid
-					sub = dispatcher.Subscribe(ctx, sessionID)
-					redisCh = sub.Channel()
+				if sid != nil && connData.SessionID != nil && *sid != *connData.SessionID {
+					logrus.Debugf(
+						"connection requested a new session, but already subscribed to a session with connection: %s, %s %s",
+						*sid,
+						*connData.SessionID,
+						connData.ConnectionID,
+					)
+					handleDisconnect(ctx, dispatcher, conn, connData)
+					_ = flowSub.Close()
+					_ = directorSub.Close()
+					connData.SessionID = nil
+					flowSub = nil
+					flowCh = nil
+					directorSub = nil
+					directorCh = nil
+				}
+				if sid != nil && (connData.SessionID == nil || *sid != *connData.SessionID) {
+					logrus.Debugf(
+						"subscribing to new session with connection: %s, %s",
+						*sid,
+						connData.ConnectionID,
+					)
+					connData.SessionID = sid
+					flowSub = dispatcher.Subscribe(ctx, *connData.SessionID)
+					flowCh = flowSub.Channel()
+					directorSub = dispatcher.Subscribe(ctx, fmt.Sprintf("%s:director", *connData.SessionID))
+					directorCh = directorSub.Channel()
 				}
 
-			case redisMsg := <-redisCh:
-				logrus.Debugf("received redis message: %s", redisMsg)
-				if errWrite := wsjson.Write(ctx, conn, redisMsg.Payload); errWrite != nil {
+			case flowMsg := <-flowCh:
+				logrus.Debugf("received flow message: %s", flowMsg)
+				if errWrite := wsjson.Write(ctx, conn, flowMsg.Payload); errWrite != nil {
+					logrus.Errorf("websocket write failed: %v", errWrite)
+					return nil
+				}
+
+			case sessMsg := <-directorCh:
+				logrus.Debugf("received director message: %s", sessMsg)
+				if errWrite := wsjson.Write(ctx, conn, sessMsg.Payload); errWrite != nil {
 					logrus.Errorf("websocket write failed: %v", errWrite)
 					return nil
 				}
@@ -107,5 +148,31 @@ func Handler(dispatcher *dispatcher.Dispatcher) echo.HandlerFunc {
 				return nil
 			}
 		}
+	}
+}
+
+// handleDisconnect handles the disconnection of a websocket connection.
+// ctx: The context for managing request lifecycle.
+// dispatcher: The dispatcher for handling management and flow actions.
+// conn: The websocket connection that is being disconnected.
+// connectionData: The connection data associated with the websocket connection.
+func handleDisconnect(
+	ctx context.Context,
+	dispatcher *Dispatcher,
+	conn *websocket.Conn,
+	connectionData *connection.Data,
+) {
+	if connectionData.SessionID != nil {
+		logrus.Infof(
+			"handling disconnect for session and connection: %s %s",
+			*connectionData.SessionID,
+			connectionData.ConnectionID,
+		)
+
+		payload, _ := json.Marshal(connectionData)
+		dispatcher.Handle(ctx, conn, connectionData, message.Message{
+			Event:   string(event.Disconnect),
+			Payload: payload,
+		})
 	}
 }
