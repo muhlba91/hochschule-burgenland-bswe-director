@@ -5,5 +5,5 @@ type Type string
 
 //nolint:gochecknoglobals // Define the action types for the Pokémon gameplay.
 var (
-	Start Type = "start"
+	TypeStart Type = "start"
 )

@@ -7,15 +7,13 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/cmd/configuration"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/cmd/logging"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/dispatcher"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/health"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/http"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/cache"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/registry"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/requestor"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/orchestrator"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/redis"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/transport/health"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/transport/http"
 )
 
 // Version and Gitsha of the current build.
@@ -34,13 +32,13 @@ func main() {
 
 	cfg := configuration.Init()
 
-	c := cache.NewCache(&cfg)
-	req := requestor.NewRequestor(c)
-	reg := registry.NewRegistry()
-	d := dispatcher.NewDispatcher(c, reg)
-	flows.Init(c, req, reg)
+	c := redis.NewCache(&cfg)
+	req := orchestrator.NewRequestor(c, c)
+	reg := orchestrator.NewRegistry()
+	d := orchestrator.NewDispatcher(c, c, c, reg)
+	flows.Init(c, c, c, req, reg)
 
-	healthServer := health.NewServer(&cfg, c)
+	healthServer := health.NewServer(&cfg, c, c, c)
 	healthServer.Start()
 
 	httpServer := http.NewServer(&cfg, d)
