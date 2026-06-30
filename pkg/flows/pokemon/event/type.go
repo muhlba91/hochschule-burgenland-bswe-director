@@ -13,7 +13,9 @@ var (
 	Listing Type = "listing"
 	Joined  Type = "joined"
 
-	Started  Type = "started"
-	Paused   Type = "paused"
-	Finished Type = "finished"
+	NotStarted Type = "not_started"
+	Started    Type = "started"
+	Paused     Type = "paused"
+	Resumed    Type = "resumed"
+	Finished   Type = "finished"
 )

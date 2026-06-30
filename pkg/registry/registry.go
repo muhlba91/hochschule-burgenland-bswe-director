@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/callback/model"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/callback/response"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/connection"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/message"
 )
@@ -14,10 +18,14 @@ type EventHandlerFunc func(context.Context, json.RawMessage, *connection.Data) *
 // SessionGeneratorEventHandlerFunc defines the function signature for handling session generation events.
 type SessionGeneratorEventHandlerFunc func(context.Context, json.RawMessage, *connection.Data) (*string, *message.Message)
 
+// CallbackHandlerFunc defines the function signature for handling events.
+type CallbackHandlerFunc func(context.Context, *model.Request, json.RawMessage) (any, error)
+
 // Registry holds the main logic and handlers.
 type Registry struct {
 	eventHandlers            map[string]EventHandlerFunc
 	sessionGeneratorHandlers map[string]SessionGeneratorEventHandlerFunc
+	callbackHandlers         map[string]CallbackHandlerFunc
 }
 
 // NewRegistry creates a new registry.
@@ -25,6 +33,7 @@ func NewRegistry() *Registry {
 	return &Registry{
 		eventHandlers:            make(map[string]EventHandlerFunc),
 		sessionGeneratorHandlers: make(map[string]SessionGeneratorEventHandlerFunc),
+		callbackHandlers:         make(map[string]CallbackHandlerFunc),
 	}
 }
 
@@ -55,6 +64,24 @@ func (r *Registry) HandleEvent(
 		Event:   message.ErrorEvent,
 		Payload: errPayload,
 	}
+}
+
+// HandleCallback executes the callback handler for a specific event type.
+// ctx: The context for managing request lifecycle.
+// request: The request data associated with the callback.
+// payload: The raw JSON payload of the event.
+func (r *Registry) HandleCallback(
+	ctx context.Context,
+	request *model.Request,
+	payload json.RawMessage,
+) (any, error) {
+	requestHandler, isRegistered := r.callbackHandlers[request.Action]
+	if isRegistered {
+		return requestHandler(ctx, request, payload)
+	}
+
+	logrus.Infof("no callback handler registered for action: %s", request.Action)
+	return nil, response.ErrNoMatchingRequest
 }
 
 // RegisterEventHandler registers a new event handler for a specific event type.
@@ -102,5 +129,26 @@ func RegisterSessionGeneratorHandler[T any](
 		}
 
 		return handleAction(ctx, &payload, connectionData)
+	}
+}
+
+// RegisterCallbackHandler registers a new callback handler for a specific action.
+// T: The type of the callback payload.
+// registry: The registry to register the handler with.
+// action: The action for which to register the handler.
+// handleAction: The function that will handle the callback.
+func RegisterCallbackHandler[T any](
+	registry *Registry,
+	action string,
+	handleAction func(context.Context, *model.Request, *T) (any, error),
+) {
+	registry.callbackHandlers[action] = func(ctx context.Context, request *model.Request, raw json.RawMessage) (any, error) {
+		var payload T
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			logrus.Infof("no callback handler registered for action: %s", request.Action)
+			return nil, response.ErrInvalidPayload
+		}
+
+		return handleAction(ctx, request, &payload)
 	}
 }

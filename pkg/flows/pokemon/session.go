@@ -3,7 +3,6 @@ package pokemon
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -14,9 +13,6 @@ import (
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/message"
 )
 
-// expirationTime defines the duration for which a session remains valid before it expires.
-const expirationTime = 24 * time.Hour
-
 // Create represents the creation of a new Pokémon game.
 // ctx: The context for managing request lifecycle.
 // create: The Create struct containing the players for the new game.
@@ -25,15 +21,14 @@ func (gp *Gameplay) Create(ctx context.Context, create *model.Create, _ *connect
 	msgEvent := message.ErrorEvent
 	payload, _ := json.Marshal(message.ErrSessionNotCreated.Error())
 
-	sid := gp.Cache.GenerateUniqueSessionID(ctx, gp.Name)
+	sid := gp.Cache.GenerateUniqueSessionID(ctx)
 
 	if sid != nil {
-		err := gp.Cache.CreateSession(ctx, *sid, &model.Session{
-			PlayerA:  create.PlayerA,
-			PlayerB:  create.PlayerB,
-			NextTurn: nil,
-			Winner:   nil,
-		}, expirationTime)
+		err := gp.Cache.CreateSession(ctx, &model.Session{
+			ID:      *sid,
+			PlayerA: create.PlayerA,
+			PlayerB: create.PlayerB,
+		})
 		if err == nil {
 			msgEvent = gp.generateEventName(event.Created)
 			payload, _ = json.Marshal(&model.Created{
@@ -55,15 +50,7 @@ func (gp *Gameplay) Create(ctx context.Context, create *model.Create, _ *connect
 // _ : The List struct (not used in this function).
 // _ : The connection.Data struct (not used in this function).
 func (gp *Gameplay) List(ctx context.Context, _ *model.List, _ *connection.Data) *message.Message {
-	sessions := make(map[string]model.Session)
-
-	rawSessions := gp.Cache.ListSessions(ctx, gp.Name)
-	for sid, s := range rawSessions {
-		var l model.Session
-		if err := json.Unmarshal([]byte(s), &l); err == nil {
-			sessions[sid] = l
-		}
-	}
+	sessions := gp.Cache.ListSessions(ctx)
 
 	payload, _ := json.Marshal(&model.Listing{
 		Sessions: sessions,
@@ -90,20 +77,13 @@ func (gp *Gameplay) Join(
 	msgEvent := message.ErrorEvent
 	payload, _ := json.Marshal(message.ErrSessionNotJoined.Error())
 
-	sessionData, sErr := gp.Cache.GetSession(ctx, *sid)
+	session, sErr := gp.Cache.GetSession(ctx, *sid)
 	switch {
 	case sErr != nil:
 		payload, _ = json.Marshal(sErr.Error())
-	case sessionData == nil:
+	case session == nil:
 		payload, _ = json.Marshal(message.ErrSessionNotFound.Error())
 	default:
-		var session model.Session
-		if err := json.Unmarshal([]byte(*sessionData), &session); err != nil {
-			logrus.Debugf("error occurred while unmarshaling session data: %v", err)
-			payload, _ = json.Marshal(err.Error())
-			break
-		}
-
 		connected := false
 		if session.PlayerA.URL == join.Player && !session.PlayerA.Connected {
 			logrus.Debugf(
@@ -130,14 +110,14 @@ func (gp *Gameplay) Join(
 			break
 		}
 
-		uErr := gp.Cache.UpdateSession(ctx, *sid, &session, expirationTime)
+		uErr := gp.Cache.UpdateSession(ctx, session)
 		if uErr == nil {
 			msgEvent = gp.generateEventName(event.Joined)
 			payload, _ = json.Marshal(&model.Joined{
 				SessionID: *sid,
 			})
 
-			gp.StartStop(ctx, &session, connectionData)
+			gp.StartStop(ctx, session, connectionData)
 		}
 	}
 
@@ -162,20 +142,13 @@ func (gp *Gameplay) Disconnect(
 	msgEvent := message.ErrorEvent
 	payload, _ := json.Marshal(message.ErrSessionDisconnected.Error())
 
-	sessionData, sErr := gp.Cache.GetSession(ctx, *connectionData.SessionID)
+	session, sErr := gp.Cache.GetSession(ctx, *connectionData.SessionID)
 	switch {
 	case sErr != nil:
 		payload, _ = json.Marshal(sErr.Error())
-	case sessionData == nil:
+	case session == nil:
 		payload, _ = json.Marshal(message.ErrSessionNotFound.Error())
 	default:
-		var session model.Session
-		if err := json.Unmarshal([]byte(*sessionData), &session); err != nil {
-			logrus.Debugf("error occurred while unmarshaling session data: %v", err)
-			payload, _ = json.Marshal(err.Error())
-			break
-		}
-
 		disconnected := false
 		switch connectionData.ConnectionID {
 		case *session.PlayerA.ConnectionID:
@@ -208,12 +181,12 @@ func (gp *Gameplay) Disconnect(
 			break
 		}
 
-		uErr := gp.Cache.UpdateSession(ctx, *connectionData.SessionID, &session, expirationTime)
+		uErr := gp.Cache.UpdateSession(ctx, session)
 		if uErr == nil {
 			msgEvent = string(globalEvent.Disconnected)
 			payload, _ = json.Marshal(connectionData)
 
-			gp.StartStop(ctx, &session, connectionData)
+			gp.StartStop(ctx, session, connectionData)
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/callback"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/websocket"
 )
 
@@ -16,6 +17,7 @@ func configureRoutes(
 	http *Server,
 ) {
 	http.Server.GET("/ws", websocket.Handler(http.Dispatcher))
+	http.Server.POST("/callback/:requestId", callback.Handler(http.Dispatcher))
 }
 
 // configureServer configures the echo server with middleware and settings.

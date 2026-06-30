@@ -9,12 +9,13 @@ import (
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/cmd/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/cmd/logging"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/dispatcher"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/health"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/http"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/websocket"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/cache"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/registry"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/requestor"
 )
 
 // Version and Gitsha of the current build.
@@ -34,9 +35,10 @@ func main() {
 	cfg := configuration.Init()
 
 	c := cache.NewCache(&cfg)
-	r := registry.NewRegistry()
-	d := websocket.NewDispatcher(c, r)
-	flows.Init(c, r)
+	req := requestor.NewRequestor(c)
+	reg := registry.NewRegistry()
+	d := dispatcher.NewDispatcher(c, reg)
+	flows.Init(c, req, reg)
 
 	healthServer := health.NewServer(&cfg, c)
 	healthServer.Start()

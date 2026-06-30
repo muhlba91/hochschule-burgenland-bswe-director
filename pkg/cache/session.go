@@ -12,9 +12,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// maxIterations defines the maximum number of attempts to generate a unique session ID before giving up.
-const maxIterations = 5
-
 // GenerateUniqueSessionID generates a unique session ID for the given flow name.
 // ctx: The context for the operation.
 // flowName: The name of the flow for which to generate the session ID.

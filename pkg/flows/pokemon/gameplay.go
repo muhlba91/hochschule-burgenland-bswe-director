@@ -3,27 +3,39 @@ package pokemon
 import (
 	"fmt"
 
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/cache"
+	globalCache "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/cache"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/action"
+	pokemonCache "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/cache"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
+	pokemonRequestor "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/requestor"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/registry"
+	globalRequestor "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/requestor"
 	globalEvent "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/websocket/event"
 )
 
 // Gameplay represents a gameplay type.
 type Gameplay struct {
-	Name     string
-	Cache    *cache.Cache
-	Registry *registry.Registry
+	Cache     *pokemonCache.Wrapper
+	Registry  *registry.Registry
+	Requestor *pokemonRequestor.Wrapper
 }
 
 // NewGameplay creates a new instance of the Pokémon gameplay.
 // cache: The cache instance for the gameplay.
 // registry: The flow registry to register the gameplay.
-func NewGameplay(cache *cache.Cache, registry *registry.Registry) *Gameplay {
+func NewGameplay(
+	cache *globalCache.Cache,
+	requestor *globalRequestor.Requestor,
+	registry *registry.Registry,
+) *Gameplay {
+	cacheWrapper := pokemonCache.NewWrapper(cache)
+	requestorWrapper := pokemonRequestor.NewWrapper(requestor, cacheWrapper)
+
 	return &Gameplay{
-		Name:     "pokemon",
-		Cache:    cache,
-		Registry: registry,
+		Cache:     cacheWrapper,
+		Registry:  registry,
+		Requestor: requestorWrapper,
 	}
 }
 
@@ -37,8 +49,14 @@ func (gp *Gameplay) Init() {
 	registry.RegisterEventHandler(gp.Registry, string(globalEvent.ConnectionInformation), gp.ConnectionInformation)
 }
 
-// Create represents the creation of a new Pokémon game.
-// event: The event type for the gameplay.
+// generateEventName generates the event name for a specific event type.
+// event: The event type for which to generate the name.
 func (gp *Gameplay) generateEventName(event event.Type) string {
-	return fmt.Sprintf("%s:%s", gp.Name, event)
+	return fmt.Sprintf("%s:%s", constants.Name, event)
+}
+
+// generateActionName generates the action name for a specific action type.
+// action: The action type for which to generate the name.
+func (gp *Gameplay) generateActionName(action action.Type) string {
+	return fmt.Sprintf("%s:%s", constants.Name, action)
 }
