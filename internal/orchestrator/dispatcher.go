@@ -13,7 +13,6 @@ import (
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback/response"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/connection"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/message"
@@ -96,16 +95,10 @@ func (d *Dispatcher) HandleCallback(
 		defer unlock(ctx)
 	}
 
-	sess, sErr := d.sessionStore.GetSession(ctx, request.SessionID)
-	if sErr != nil || sess == nil {
+	session, sErr := d.sessionStore.GetBaseSession(ctx, request.SessionID)
+	if sErr != nil {
 		logrus.Infof("session not found: %s", request.SessionID)
 		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingSession))
-	}
-	var session session.Base
-	usErr := json.Unmarshal([]byte(*sess), &session)
-	if usErr != nil {
-		logrus.Errorf("failed to unmarshal session for request %s: %v", requestID, usErr)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.NewError(response.ErrNoMatchingSession))
 	}
 
 	if request.Parallelization != 0 && !session.IsRequestExpected(requestID) {
@@ -113,13 +106,20 @@ func (d *Dispatcher) HandleCallback(
 		return echo.NewHTTPError(http.StatusConflict, response.NewError(response.ErrCallbackNotExpected))
 	}
 
-	cErr := d.registry.HandleCallback(ctx, &session, request, body)
+	cErr := d.registry.HandleCallback(ctx, session, request, body)
 	if cErr != nil {
 		logrus.Errorf("failed to handle callback for request %s: %v", requestID, cErr)
 		return echo.NewHTTPError(http.StatusInternalServerError, response.NewError(cErr))
 	}
 
-	uErr := d.requestStore.CompleteRequest(ctx, &session, request)
+	// reload session in case it was updated during callback handling
+	session, sErr = d.sessionStore.GetBaseSession(ctx, request.SessionID)
+	if sErr != nil {
+		logrus.Infof("session not found: %s", request.SessionID)
+		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingSession))
+	}
+
+	uErr := d.requestStore.CompleteRequest(ctx, session, request)
 	if uErr != nil {
 		logrus.Errorf("failed to complete request %s: %v", requestID, uErr)
 		return echo.NewHTTPError(http.StatusInternalServerError, response.NewError(response.ErrCompletionFailed))

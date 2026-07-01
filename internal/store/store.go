@@ -57,6 +57,11 @@ type SessionStore interface {
 	// sessionID: The unique identifier for the session.
 	GetSession(ctx context.Context, sessionID string) (*string, error)
 
+	// GetBaseSession retrieves the base session data associated with a given session ID.
+	// ctx: The context for the operation.
+	// sessionID: The unique identifier for the session.
+	GetBaseSession(ctx context.Context, sessionID string) (session.Session, error)
+
 	// ListSessions lists all active sessions for a given flow name.
 	// ctx: The context for the operation.
 	// flowName: The name of the flow for which to list sessions.

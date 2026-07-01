@@ -119,10 +119,7 @@ func (gp *Gameplay) Start(ctx context.Context, session *pkgPokemonSession.Sessio
 		return request, data
 	}
 
-	err := gp.requestor.Send(ctx, session, session.GetPlayerURLs(), requestBuilder)
-	if err != nil {
-		logrus.Errorf("failed to send start requests for session %s: %v", session.GetID(), err)
-	}
+	gp.requestor.Send(ctx, session, session.GetPlayerURLs(), requestBuilder)
 }
 
 // StartCallback handles the callback for the start action.

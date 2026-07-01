@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
-	pokemonRequestor "github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/requestor"
 	pokemonStore "github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/store/state"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/orchestrator"
@@ -16,7 +15,7 @@ import (
 // Gameplay represents a gameplay type.
 type Gameplay struct {
 	store     *pokemonStore.Wrapper
-	requestor *pokemonRequestor.Wrapper
+	requestor *orchestrator.Requestor
 }
 
 // NewGameplay creates a new instance of the Pokémon gameplay.
@@ -37,11 +36,10 @@ func NewGameplay(
 ) *Gameplay {
 	stateStore := state.NewStore(store)
 	cacheWrapper := pokemonStore.NewWrapper(sessionStore, requestStore, broadcastStore, locker, stateStore)
-	requestorWrapper := pokemonRequestor.NewWrapper(requestor, cacheWrapper)
 
 	return &Gameplay{
 		store:     cacheWrapper,
-		requestor: requestorWrapper,
+		requestor: requestor,
 	}
 }
 

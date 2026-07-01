@@ -62,17 +62,7 @@ func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) er
 		return request, data
 	}
 
-	err := gp.requestor.Send(ctx, pokemonSession, []string{player.URL}, requestBuilder)
-	if err != nil {
-		logrus.Errorf(
-			"failed to send turn requests for session %s and player %s: %v",
-			session.GetID(),
-			*pokemonSession.NextTurn,
-			err,
-		)
-		return err
-	}
-
+	gp.requestor.Send(ctx, pokemonSession, []string{player.URL}, requestBuilder)
 	return nil
 }
 
@@ -123,12 +113,7 @@ func (gp *Gameplay) TurnCallback(
 			return attack, data
 		}
 
-		err := gp.requestor.Send(ctx, pokemonSession, []string{opponent.URL}, requestBuilder)
-		if err != nil {
-			logrus.Errorf("failed to send attack request for session %s: %v", session.GetID(), err)
-			return err
-		}
-
+		gp.requestor.Send(ctx, pokemonSession, []string{opponent.URL}, requestBuilder)
 		return nil
 	}
 	_ = gp.store.BroadcastState(ctx, state)
