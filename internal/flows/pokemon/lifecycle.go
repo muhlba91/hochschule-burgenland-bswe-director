@@ -10,7 +10,7 @@ import (
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/action"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/session"
+	pkgPokemonSession "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/session"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/state"
 	pkgSession "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback"
@@ -22,7 +22,11 @@ import (
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // session: The current game session containing player connection information.
 // connectionData: The data related to the WebSocket connection, including session ID and other relevant details.
-func (gp *Gameplay) StartStop(ctx context.Context, session *session.Session, connectionData *connection.Data) {
+func (gp *Gameplay) StartStop(
+	ctx context.Context,
+	session *pkgPokemonSession.Session,
+	connectionData *connection.Data,
+) {
 	evnt := event.TypeNotStarted
 	if session.Winner != nil {
 		evnt = event.TypeFinished
@@ -53,7 +57,8 @@ func (gp *Gameplay) StartStop(ctx context.Context, session *session.Session, con
 		Payload: payload,
 	})
 
-	// FIXME: broadcast winner and last state again (if it still exists)
+	logrus.Debugf("broadcasting state for session: %s", session.GetID())
+	_ = gp.store.BroadcastStateForSession(ctx, session.GetID())
 
 	switch evnt {
 	case event.TypeNotStarted:
@@ -66,9 +71,10 @@ func (gp *Gameplay) StartStop(ctx context.Context, session *session.Session, con
 		_ = gp.requestor.CleanRequestQueue(ctx, session)
 	case event.TypeResumed:
 		logrus.Debugf("session %s is resumed", session.GetID())
-		gp.NextTurn(ctx, session)
+		_ = gp.NextTurn(ctx, session)
 	case event.TypeFinished:
 		logrus.Debugf("session %s is already finished", session.GetID())
+		_ = gp.broadcastWinner(ctx, session)
 	default:
 		logrus.Warnf("unknown event: %s for session: %s", evnt, session.GetID())
 	}
@@ -77,7 +83,7 @@ func (gp *Gameplay) StartStop(ctx context.Context, session *session.Session, con
 // Start initiates the gameplay for a given session.
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // session: The current game session containing player connection information.
-func (gp *Gameplay) Start(ctx context.Context, session *session.Session) {
+func (gp *Gameplay) Start(ctx context.Context, session *pkgPokemonSession.Session) {
 	logrus.Infof("starting gameplay for session: %s", session.GetID())
 
 	session.StartedAt = time.Now().Unix()
@@ -138,7 +144,7 @@ func (gp *Gameplay) StartCallback(
 	if len(session.GetNextRequests()) == 0 {
 		logrus.Debugf("all start callbacks received for session %s, initiating next turn", session.GetID())
 		_ = gp.store.BroadcastState(ctx, state)
-		gp.NextTurn(ctx, session)
+		return gp.NextTurn(ctx, session)
 	}
 
 	return nil
@@ -148,7 +154,68 @@ func (gp *Gameplay) StartCallback(
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // session: The current game session containing player connection information.
 // state: The current state of the game, including player statuses and other relevant information.
-func (gp *Gameplay) analyzeState(ctx context.Context, session pkgSession.Session, state *state.State) {
-	// FIXME: implement winner detection and broadcast winner event
-	gp.NextTurn(ctx, session)
+func (gp *Gameplay) analyzeState(ctx context.Context, session pkgSession.Session, state *state.State) error {
+	pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
+	if psErr != nil {
+		logrus.Errorf("failed to get session %s: %v", session.GetID(), psErr)
+		return psErr
+	}
+
+	for playerID, playerState := range state.Players {
+		opponent := pokemonSession.GetOpponentForID(playerID)
+
+		if len(playerState.PrizeCards) == 0 {
+			logrus.Infof("player %s has taken all prize cards, session %s finished", playerID, pokemonSession.GetID())
+			pokemonSession.Winner = &playerID
+			break
+		}
+
+		if playerState.Active == nil || playerState.Active.HP <= 0 {
+			logrus.Infof(
+				"player %s's active pokemon is dead, opponent %s wins session %s",
+				playerID,
+				opponent.ID,
+				pokemonSession.GetID(),
+			)
+			pokemonSession.Winner = &opponent.ID
+			break
+		}
+
+		if len(playerState.Deck) == 0 {
+			logrus.Infof(
+				"player %s's deck is empty, opponent %s wins session %s",
+				playerID,
+				opponent.ID,
+				pokemonSession.GetID(),
+			)
+			pokemonSession.Winner = &opponent.ID
+			break
+		}
+	}
+
+	if pokemonSession.Winner != nil {
+		if err := gp.store.UpdateSession(ctx, pokemonSession); err != nil {
+			logrus.Errorf("failed to update session %s with winner: %v", pokemonSession.GetID(), err)
+		}
+
+		return gp.broadcastWinner(ctx, pokemonSession)
+	}
+
+	return gp.NextTurn(ctx, session)
+}
+
+// broadcastWinner broadcasts the winner of the game session to all connected clients.
+// ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
+// session: The current game session containing player connection information and the winner.
+func (gp *Gameplay) broadcastWinner(ctx context.Context, session *pkgPokemonSession.Session) error {
+	if session.Winner == nil {
+		logrus.Warnf("no winner to broadcast for session %s", session.GetID())
+		return nil
+	}
+
+	payload, _ := json.Marshal(session)
+	return gp.store.Broadcast(ctx, session.GetID(), &message.Message{
+		Event:   gp.generateEventName(event.TypeFinished),
+		Payload: payload,
+	})
 }

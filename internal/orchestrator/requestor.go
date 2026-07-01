@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
 	callbackModel "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback"
@@ -27,16 +28,19 @@ type RequestBuilderFunc func(string) (*callbackModel.Request, callbackModel.Requ
 type Requestor struct {
 	requestorStore store.RequestStore
 	httpClient     *http.Client
+	config         *configuration.Data
 }
 
 // NewRequestor creates a new instance of Requestor.
 // requestorStore: The store for managing requests.
-func NewRequestor(requestorStore store.RequestStore) *Requestor {
+// config: The configuration data for the requestor.
+func NewRequestor(requestorStore store.RequestStore, config *configuration.Data) *Requestor {
 	return &Requestor{
 		requestorStore: requestorStore,
 		httpClient: &http.Client{
 			Timeout: httpTimeout,
 		},
+		config: config,
 	}
 }
 
@@ -110,8 +114,7 @@ func (r *Requestor) CreateRequest(
 	}
 
 	request.ID = uuid.NewString()
-	// FIXME: get base url from config or environment variable
-	data.SetCallback(fmt.Sprintf("%s/callback/%s", "<base_url>", request.ID))
+	data.SetCallback(fmt.Sprintf("%s/callback/%s", r.config.BaseURL, request.ID))
 
 	body, err := json.Marshal(data)
 	if err != nil {

@@ -16,19 +16,19 @@ import (
 // NextTurn initiates the next turn for a given session.
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // session: The current game session containing player connection information.
-func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) {
+func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) error {
 	logrus.Infof("starting next turn for session: %s", session.GetID())
 
 	pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
 	if psErr != nil {
 		logrus.Errorf("failed to get session %s: %v", session.GetID(), psErr)
-		return
+		return psErr
 	}
 
 	state, sErr := gp.store.GetState(ctx, session.GetID())
 	if sErr != nil {
 		logrus.Errorf("failed to get state for session %s: %v", session.GetID(), sErr)
-		return
+		return sErr
 	}
 
 	if pokemonSession.NextTurn == nil {
@@ -70,7 +70,10 @@ func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) {
 			*pokemonSession.NextTurn,
 			err,
 		)
+		return err
 	}
+
+	return nil
 }
 
 // TurnCallback handles the callback for the turn action.
@@ -100,7 +103,7 @@ func (gp *Gameplay) TurnCallback(
 
 		opponent := pokemonSession.GetOpponentForID(request.InternalID)
 
-		requestBuilder := func(url string) (*callback.Request, callback.RequestData) {
+		requestBuilder := func(_ string) (*callback.Request, callback.RequestData) {
 			data := &action.Attack{
 				RequestBase: action.RequestBase{
 					RequestDataBase: callback.RequestDataBase{
@@ -123,13 +126,13 @@ func (gp *Gameplay) TurnCallback(
 		err := gp.requestor.Send(ctx, pokemonSession, []string{opponent.URL}, requestBuilder)
 		if err != nil {
 			logrus.Errorf("failed to send attack request for session %s: %v", session.GetID(), err)
+			return err
 		}
-	} else {
-		_ = gp.store.BroadcastState(ctx, state)
-		gp.analyzeState(ctx, session, state)
-	}
 
-	return nil
+		return nil
+	}
+	_ = gp.store.BroadcastState(ctx, state)
+	return gp.analyzeState(ctx, session, state)
 }
 
 // AttackCallback handles the callback for the attack action.
@@ -148,9 +151,7 @@ func (gp *Gameplay) AttackCallback(
 		return sErr
 	}
 
-	gp.analyzeState(ctx, session, state)
-
-	return nil
+	return gp.analyzeState(ctx, session, state)
 }
 
 // generateFirstTurn generates a random player ID from the provided list of keys to determine who takes the first turn.

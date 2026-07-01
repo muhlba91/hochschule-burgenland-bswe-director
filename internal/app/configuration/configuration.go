@@ -21,6 +21,8 @@ type Data struct {
 	RedisPort int `env:"REDIS_PORT" envDefault:"6379"`
 	// RedisPassword is the password for the redis server
 	RedisPassword string `env:"REDIS_PASSWORD"`
+	// BaseURL is the base URL for the director
+	BaseURL string `env:"BASE_URL" envDefault:"http://localhost:8888"`
 }
 
 // Init reads the configuration from environment variables and returns a Config struct.
