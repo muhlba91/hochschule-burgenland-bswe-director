@@ -12,6 +12,8 @@ type Data struct {
 	ConnectionID string `json:"connection_id"`
 	// SessionID is the unique identifier for the session associated with the connection.
 	SessionID *string `json:"session_id,omitempty"`
+	// InternalID is the unique identifier for the internal representation of the connection.
+	InternalID *string `json:"internal_id,omitempty"`
 }
 
 // NewData creates a new instance of Data with a unique ConnectionID.

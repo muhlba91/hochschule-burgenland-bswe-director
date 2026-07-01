@@ -21,21 +21,18 @@ import (
 const httpTimeout = 5 * time.Second
 
 // RequestBuilderFunc is a function type that takes a session ID and a session object, and returns a callback request.
-type RequestBuilderFunc func() (*callbackModel.Request, callbackModel.RequestData)
+type RequestBuilderFunc func(string) (*callbackModel.Request, callbackModel.RequestData)
 
 // Requestor is responsible for handling requests related to the Pokémon game flow.
 type Requestor struct {
-	sessionStore   store.SessionStore
 	requestorStore store.RequestStore
 	httpClient     *http.Client
 }
 
 // NewRequestor creates a new instance of Requestor.
 // requestorStore: The store for managing requests.
-// sessionStore: The store for managing sessions.
-func NewRequestor(requestorStore store.RequestStore, sessionStore store.SessionStore) *Requestor {
+func NewRequestor(requestorStore store.RequestStore) *Requestor {
 	return &Requestor{
-		sessionStore:   sessionStore,
 		requestorStore: requestorStore,
 		httpClient: &http.Client{
 			Timeout: httpTimeout,
@@ -165,31 +162,6 @@ func (r *Requestor) GetRequest(ctx context.Context, requestID string) (*callback
 	return request, nil
 }
 
-// CompleteRequest marks a request as completed and updates the request accordingly.
-// ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
-// session: The session to which the request belongs.
-// request: The request to be marked as completed.
-func (r *Requestor) CompleteRequest(
-	ctx context.Context,
-	session session.Session,
-	request *callbackModel.Request,
-) error {
-	request.Completed = true
-	if err := r.requestorStore.UpdateRequest(ctx, request); err != nil {
-		logrus.Errorf("failed to update request %s: %v", request.ID, err)
-		return err
-	}
-
-	session.DeleteNextRequest(request.ID)
-	if err := r.sessionStore.UpdateSession(ctx, session.GetID(), session); err != nil {
-		logrus.Errorf("failed to update session %s after completing request %s: %v", session.GetID(), request.ID, err)
-		return err
-	}
-
-	logrus.Debugf("request %s marked as completed", request.ID)
-	return nil
-}
-
 // CleanRequestQueue cleans the request queue for a given session.
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // session: The current game session for which the request queue needs to be cleaned.
@@ -206,7 +178,7 @@ func (r *Requestor) CleanRequestQueue(ctx context.Context, session session.Sessi
 			return gErr
 		}
 
-		if err := r.CompleteRequest(ctx, session, request); err != nil {
+		if err := r.requestorStore.CompleteRequest(ctx, session, request); err != nil {
 			return err
 		}
 	}
@@ -237,7 +209,7 @@ func (r *Requestor) Send(
 		go func(u string) {
 			defer wg.Done()
 
-			request, data := requestBuilder()
+			request, data := requestBuilder(url)
 			request.Endpoint = fmt.Sprintf("%s/%s", url, strings.ToLower(request.Action))
 
 			rErr := createRequestFunction(ctx, session, request, data)

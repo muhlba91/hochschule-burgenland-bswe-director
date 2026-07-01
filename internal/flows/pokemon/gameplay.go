@@ -6,6 +6,7 @@ import (
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
 	pokemonRequestor "github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/requestor"
 	pokemonStore "github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/store"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/store/state"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/orchestrator"
 	globalStore "github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/action"
@@ -21,13 +22,21 @@ type Gameplay struct {
 // NewGameplay creates a new instance of the Pokémon gameplay.
 // cache: The cache instance for the gameplay.
 // registry: The flow registry to register the gameplay.
+// sessionStore: The session store for managing sessions.
+// requestStore: The request store for managing requests.
+// broadcastStore: The broadcast store for managing broadcasts.
+// locker: The locker for managing locks.
+// requestor: The requestor for handling requests.
 func NewGameplay(
 	sessionStore globalStore.SessionStore,
 	requestStore globalStore.RequestStore,
 	broadcastStore globalStore.BroadcastStore,
+	locker globalStore.Locker,
 	requestor *orchestrator.Requestor,
+	store globalStore.Store,
 ) *Gameplay {
-	cacheWrapper := pokemonStore.NewWrapper(sessionStore, requestStore, broadcastStore)
+	stateStore := state.NewStore(store)
+	cacheWrapper := pokemonStore.NewWrapper(sessionStore, requestStore, broadcastStore, locker, stateStore)
 	requestorWrapper := pokemonRequestor.NewWrapper(requestor, cacheWrapper)
 
 	return &Gameplay{

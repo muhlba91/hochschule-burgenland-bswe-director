@@ -2,14 +2,38 @@ package store
 
 import (
 	"context"
+	"time"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
 	callbackModel "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback"
 )
 
-// SessionStore defines the interface for managing sessions in the store.
-type SessionStore interface {
+// Store defines the interface for a generic store that can be used for various purposes, such as session management, request handling, and broadcasting messages.
+type Store interface {
 	// IsConnected checks if the store is connected and operational.
 	IsConnected() bool
+
+	// Exists checks if the given key exists in the store.
+	// ctx: The context for the operation.
+	// key: The key to check for existence.
+	Exists(ctx context.Context, key string) (bool, error)
+
+	// Get retrieves the value associated with the given key from the store.
+	// ctx: The context for the operation.
+	// key: The key to retrieve the value for.
+	Get(ctx context.Context, key string) (*string, error)
+
+	// Set stores the given value in the store with the specified key and expiration duration.
+	// ctx: The context for the operation.
+	// key: The key to store the value under.
+	// value: The value to be stored in the store.
+	// expiration: The duration after which the key-value pair should expire.
+	Set(ctx context.Context, key string, value any, expiration time.Duration) error
+}
+
+// SessionStore defines the interface for managing sessions in the store.
+type SessionStore interface {
+	Store
 
 	// CreateSession creates a new session with the given session ID, data, and expiration duration.
 	// ctx: The context for the operation.
@@ -38,12 +62,16 @@ type SessionStore interface {
 	// flowName: The name of the flow for which to broadcast data.
 	// data: The data to be broadcasted to all active sessions.
 	Broadcast(ctx context.Context, sessionID string, data any) error
+
+	// LockSession locks a session for exclusive access, preventing other operations from modifying it.
+	// ctx: The context for the operation.
+	// sessionID: The unique identifier for the session to be locked.
+	LockSession(ctx context.Context, sessionID string) (UnlockFunc, error)
 }
 
 // RequestStore defines the interface for managing requests in the store.
 type RequestStore interface {
-	// IsConnected checks if the store is connected and operational.
-	IsConnected() bool
+	Store
 
 	// CreateRequest creates a new request with the given request data and expiration duration.
 	// ctx: The context for the operation.
@@ -59,12 +87,17 @@ type RequestStore interface {
 	// ctx: The context for the operation.
 	// requestID: The unique identifier for the request.
 	GetRequest(ctx context.Context, requestID string) (*callbackModel.Request, error)
+
+	// CompleteRequest marks a request as completed and performs any necessary cleanup or finalization.
+	// ctx: The context for the operation.
+	// session: The current game session containing player connection information.
+	// request: The request to be marked as completed.
+	CompleteRequest(ctx context.Context, session session.Session, request *callbackModel.Request) error
 }
 
 // BroadcastStore defines the interface for broadcasting messages to subscribers.
 type BroadcastStore interface {
-	// IsConnected checks if the store is connected and operational.
-	IsConnected() bool
+	Store
 
 	// Broadcast broadcasts data to all subscribers of a given session ID.
 	// ctx: The context for the operation.

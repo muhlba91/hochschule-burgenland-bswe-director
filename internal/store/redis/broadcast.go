@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
 )
 
 // Subscribe subscribes to the given channels and returns a PubSub instance.
@@ -28,7 +29,7 @@ func (c *Cache) Subscribe(ctx context.Context, channels ...string) (store.Subscr
 // channel: The channel to which the broadcast message belongs.
 // data: The data to be stored in the broadcast.
 func (c *Cache) Broadcast(ctx context.Context, sessionID string, data any) error {
-	channelKey := fmt.Sprintf("%s:%s", sessionID, BroadcastChannel)
+	channelKey := fmt.Sprintf("%s:%s", sessionID, constants.BroadcastChannel)
 	payload, _ := json.Marshal(data)
 
 	logrus.Debugf("publishing broadcast to channelKey: %s, data: %s", channelKey, payload)

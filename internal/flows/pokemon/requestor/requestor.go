@@ -25,21 +25,6 @@ func NewWrapper(requestor *orchestrator.Requestor, store *store.Wrapper) *Wrappe
 	return &Wrapper{requestor: requestor, store: store}
 }
 
-// CompleteRequest marks a request as completed and updates the session accordingly.
-// ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
-// session: The current game session containing player connection information.
-// request: The request to be marked as completed.
-func (w *Wrapper) CompleteRequest(ctx context.Context, session *session.Session, request *callbackModel.Request) error {
-	cErr := w.requestor.CompleteRequest(ctx, session, request)
-	if cErr != nil {
-		logrus.Errorf("failed to update request %s for session %s: %v", request.ID, session.GetID(), cErr)
-		return cErr
-	}
-
-	logrus.Debugf("request %s for session %s marked as completed", request.ID, session.GetID())
-	return nil
-}
-
 // CleanRequestQueue cleans the request queue for a given session.
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // session: The current game session for which the request queue needs to be cleaned.

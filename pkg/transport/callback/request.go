@@ -11,6 +11,8 @@ type Request struct {
 	ID string `json:"id" redis:"id"`
 	// SessionID is the unique identifier for the session associated with the request.
 	SessionID string `json:"session_id" redis:"session_id"`
+	// InternalID is an internal identifier for the request, used for tracking and logging purposes.
+	InternalID string `json:"internal_id" redis:"internal_id"`
 	// Endpoint is the endpoint to which the request is directed.
 	Endpoint string `json:"endpoint" redis:"endpoint"`
 	// Body contains the body of the request.

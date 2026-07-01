@@ -21,14 +21,14 @@ func (r *Registry) HandleCallback(
 	session session.Session,
 	request *callback.Request,
 	payload json.RawMessage,
-) (any, error) {
+) error {
 	requestHandler, isRegistered := r.callbackHandlers[request.Action]
 	if isRegistered {
 		return requestHandler(ctx, payload, session, request)
 	}
 
 	logrus.Infof("no callback handler registered for action: %s", request.Action)
-	return nil, response.ErrNoMatchingRequest
+	return response.ErrNoMatchingRequest
 }
 
 // RegisterCallbackHandler registers a new callback handler for a specific action.
@@ -39,13 +39,13 @@ func (r *Registry) HandleCallback(
 func RegisterCallbackHandler[T any](
 	registry *Registry,
 	action string,
-	handleAction func(context.Context, *T, session.Session, *callback.Request) (any, error),
+	handleAction func(context.Context, *T, session.Session, *callback.Request) error,
 ) {
-	registry.callbackHandlers[action] = func(ctx context.Context, raw json.RawMessage, session session.Session, request *callback.Request) (any, error) {
+	registry.callbackHandlers[action] = func(ctx context.Context, raw json.RawMessage, session session.Session, request *callback.Request) error {
 		var payload T
 		if err := json.Unmarshal(raw, &payload); err != nil {
 			logrus.Infof("no callback handler registered for action: %s", request.Action)
-			return nil, response.ErrInvalidPayload
+			return response.ErrInvalidPayload
 		}
 
 		return handleAction(ctx, &payload, session, request)

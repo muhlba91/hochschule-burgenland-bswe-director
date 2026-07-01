@@ -87,6 +87,15 @@ func (d *Dispatcher) HandleCallback(
 		logrus.Infof("request not found: %s", requestID)
 		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingRequest))
 	}
+
+	if request.Parallelization != 0 {
+		unlock, err := d.sessionStore.LockSession(ctx, request.SessionID)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusLocked, response.NewError(response.ErrSessionLocked))
+		}
+		defer unlock(ctx)
+	}
+
 	if request.Completed {
 		logrus.Infof("request already completed: %s", requestID)
 		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrRequestAlreadyCompleted))
@@ -109,21 +118,16 @@ func (d *Dispatcher) HandleCallback(
 		return echo.NewHTTPError(http.StatusConflict, response.NewError(response.ErrCallbackNotExpected))
 	}
 
-	rMsg, cErr := d.registry.HandleCallback(ctx, &session, request, body)
+	cErr := d.registry.HandleCallback(ctx, &session, request, body)
 	if cErr != nil {
 		logrus.Errorf("failed to handle callback for request %s: %v", requestID, cErr)
 		return echo.NewHTTPError(http.StatusInternalServerError, response.NewError(cErr))
 	}
 
-	request.Completed = true
-	uErr := d.requestStore.UpdateRequest(ctx, request)
+	uErr := d.requestStore.CompleteRequest(ctx, &session, request)
 	if uErr != nil {
-		logrus.Errorf("failed to update request %s: %v", requestID, uErr)
+		logrus.Errorf("failed to complete request %s: %v", requestID, uErr)
 		return echo.NewHTTPError(http.StatusInternalServerError, response.NewError(response.ErrCompletionFailed))
-	}
-
-	if rMsg != nil {
-		return echoCtx.JSON(http.StatusOK, response.NewSuccess(rMsg))
 	}
 
 	return echoCtx.NoContent(http.StatusOK)

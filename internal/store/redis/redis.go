@@ -1,9 +1,10 @@
 package redis
 
 import (
-	"context"
 	"fmt"
 
+	"github.com/go-redsync/redsync/v4"
+	"github.com/go-redsync/redsync/v4/redis/goredis/v9"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
@@ -12,7 +13,8 @@ import (
 
 // Cache represents the redis cache.
 type Cache struct {
-	client *redis.Client
+	client  *redis.Client
+	redsync *redsync.Redsync
 }
 
 // NewCache creates a new redis cache.
@@ -24,8 +26,12 @@ func NewCache(cfg *configuration.Data) *Cache {
 		DB:       0,
 	})
 
+	pool := goredis.NewPool(client)
+	rs := redsync.New(pool)
+
 	return &Cache{
-		client: client,
+		client:  client,
+		redsync: rs,
 	}
 }
 
@@ -39,20 +45,4 @@ func (c *Cache) Stop() {
 	if err := c.client.Close(); err != nil {
 		logrus.Errorf("failed to shutdown cache: %v", err)
 	}
-}
-
-// Exists checks if the given key exists in the cache.
-// ctx: The context for the operation.
-// key: The key to check for existence.
-func (c *Cache) Exists(ctx context.Context, key string) (int64, error) {
-	return c.client.Exists(ctx, key).Result()
-}
-
-// IsConnected checks the connection to the redis server.
-func (c *Cache) IsConnected() bool {
-	if c.client == nil {
-		return false
-	}
-
-	return c.client.Ping(context.Background()).Err() == nil
 }

@@ -21,7 +21,13 @@ func (gp *Gameplay) Disconnect(
 	_ *connection.Data,
 	connectionData *connection.Data,
 ) *message.Message {
-	var sid *string
+	unlock, err := gp.store.LockSession(ctx, *connectionData.SessionID)
+	if err != nil {
+		payload, _ := json.Marshal(message.ErrSessionNotJoined.Error())
+		return &message.Message{Event: message.ErrorEvent, Payload: payload}
+	}
+	defer unlock(ctx)
+
 	msgEvent := message.ErrorEvent
 	payload, _ := json.Marshal(message.ErrSessionDisconnected.Error())
 
@@ -33,26 +39,22 @@ func (gp *Gameplay) Disconnect(
 		payload, _ = json.Marshal(message.ErrSessionNotFound.Error())
 	default:
 		disconnected := false
-		switch connectionData.ConnectionID {
-		case *session.PlayerA.ConnectionID:
-			logrus.Debugf(
-				"player A is disconnecting from the session with connection ID: %s, %s",
-				*connectionData.SessionID,
-				connectionData.ConnectionID,
-			)
-			session.PlayerA.Connected = false
-			session.PlayerA.ConnectionID = nil
-			disconnected = true
-		case *session.PlayerB.ConnectionID:
-			logrus.Debugf(
-				"player B is disconnecting from the session with connection ID: %s, %s",
-				*connectionData.SessionID,
-				connectionData.ConnectionID,
-			)
-			session.PlayerB.Connected = false
-			session.PlayerB.ConnectionID = nil
-			disconnected = true
-		default:
+		for _, player := range session.Players {
+			if player.ConnectionID != nil && *player.ConnectionID == connectionData.ConnectionID {
+				logrus.Debugf(
+					"player %s is disconnecting from the session with connection ID: %s, %s",
+					player.ID,
+					*connectionData.SessionID,
+					connectionData.ConnectionID,
+				)
+				player.Connected = false
+				player.ConnectionID = nil
+				disconnected = true
+				break
+			}
+		}
+
+		if !disconnected {
 			logrus.Infof(
 				"connection ID: %s is not associated with any player in session for disconnect: %s",
 				connectionData.ConnectionID,
@@ -73,7 +75,12 @@ func (gp *Gameplay) Disconnect(
 		}
 	}
 
-	logrus.Debugf("Disconnect session response: sid=%v, event=%s, payload=%s", sid, msgEvent, payload)
+	logrus.Debugf(
+		"Disconnect session response: sid=%v, event=%s, payload=%s",
+		*connectionData.SessionID,
+		msgEvent,
+		payload,
+	)
 
 	return &message.Message{
 		Event:   msgEvent,

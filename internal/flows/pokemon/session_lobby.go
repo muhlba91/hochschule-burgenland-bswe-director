@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
@@ -21,9 +22,13 @@ func (gp *Gameplay) Create(ctx context.Context, create *event.Create, _ *connect
 	payload, _ := json.Marshal(message.ErrSessionNotCreated.Error())
 
 	sessionID := gp.store.GenerateUniqueSessionID()
+	create.PlayerA.ID = uuid.NewString()
+	create.PlayerB.ID = uuid.NewString()
 	session := &session.Session{
-		PlayerA: create.PlayerA,
-		PlayerB: create.PlayerB,
+		Players: map[string]*session.Player{
+			create.PlayerA.ID: &create.PlayerA,
+			create.PlayerB.ID: &create.PlayerB,
+		},
 	}
 	session.ID = sessionID
 
@@ -72,6 +77,14 @@ func (gp *Gameplay) Join(
 	connectionData *connection.Data,
 ) (*string, *message.Message) {
 	sid := &join.SessionID
+
+	unlock, err := gp.store.LockSession(ctx, *sid)
+	if err != nil {
+		payload, _ := json.Marshal(message.ErrSessionNotJoined.Error())
+		return nil, &message.Message{Event: message.ErrorEvent, Payload: payload}
+	}
+	defer unlock(ctx)
+
 	msgEvent := message.ErrorEvent
 	payload, _ := json.Marshal(message.ErrSessionNotJoined.Error())
 
@@ -83,23 +96,16 @@ func (gp *Gameplay) Join(
 		payload, _ = json.Marshal(message.ErrSessionNotFound.Error())
 	default:
 		connected := false
-		if session.PlayerA.URL == join.Player && !session.PlayerA.Connected {
+		if player, ok := session.Players[join.Player]; ok && !player.Connected {
 			logrus.Debugf(
-				"player A is joining the session with connection ID: %s, %s",
+				"player %s is joining the session with connection ID: %s, %s",
+				player.ID,
 				*sid,
 				connectionData.ConnectionID,
 			)
-			session.PlayerA.Connected = true
-			session.PlayerA.ConnectionID = &connectionData.ConnectionID
-			connected = true
-		} else if session.PlayerB.URL == join.Player && !session.PlayerB.Connected {
-			logrus.Debugf(
-				"player B is joining the session with connection ID: %s, %s",
-				*sid,
-				connectionData.ConnectionID,
-			)
-			session.PlayerB.Connected = true
-			session.PlayerB.ConnectionID = &connectionData.ConnectionID
+			player.Connected = true
+			player.ConnectionID = &connectionData.ConnectionID
+			connectionData.InternalID = &player.ID
 			connected = true
 		}
 

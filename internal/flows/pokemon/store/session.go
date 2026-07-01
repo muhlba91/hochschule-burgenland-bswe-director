@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	pokemonSession "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/session"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
 )
@@ -65,4 +66,11 @@ func (w *Wrapper) GetSession(ctx context.Context, sessionID string) (*pokemonSes
 	}
 
 	return &session, nil
+}
+
+// LockSession locks the session with the given session ID to prevent concurrent access.
+// ctx: The context for the operation.
+// sessionID: The unique session ID for the session to be locked.
+func (w *Wrapper) LockSession(ctx context.Context, sessionID string) (store.UnlockFunc, error) {
+	return w.sessionStore.LockSession(ctx, sessionID)
 }

@@ -2,13 +2,11 @@ package redis
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
 )
@@ -18,10 +16,7 @@ import (
 // sessionID: The unique session ID for the new session.
 // data: The data to be stored in the session.
 func (c *Cache) CreateSession(ctx context.Context, sessionID string, data any) error {
-	session, _ := json.Marshal(data)
-
-	logrus.Debugf("saving session with ID: %s, data: %s", sessionID, session)
-	if err := c.client.Set(ctx, sessionID, session, constants.DefaultSessionExpiration).Err(); err != nil {
+	if err := c.Set(ctx, sessionID, data, constants.DefaultSessionExpiration); err != nil {
 		logrus.Errorf("failed to save session: %v", err)
 		return err
 	}
@@ -51,12 +46,12 @@ func (c *Cache) ListSessions(ctx context.Context, flowName string) map[string]st
 	}
 
 	for _, key := range keys {
-		val, gEerr := c.client.Get(ctx, key).Result()
+		val, gEerr := c.Get(ctx, key)
 		if gEerr != nil {
 			logrus.Errorf("failed to get session data for key %s: %v", key, gEerr)
 			continue
 		}
-		sessions[key] = val
+		sessions[key] = *val
 	}
 
 	logrus.Debugf("retrieved sessions for flow %s: %v", flowName, sessions)
@@ -67,19 +62,13 @@ func (c *Cache) ListSessions(ctx context.Context, flowName string) map[string]st
 // GetSession retrieves the session data for the given session ID from the cache.
 // ctx: The context for the operation.
 // sessionID: The unique session ID for the new session.
-//
-//nolint:nilnil // This function returns nil, nil when the session is not found, which is a valid case.
 func (c *Cache) GetSession(ctx context.Context, sessionID string) (*string, error) {
-	session, err := c.client.Get(ctx, sessionID).Result()
-	logrus.Debugf("retrieved session data for key %s: %s", sessionID, session)
+	return c.Get(ctx, sessionID)
+}
 
-	if errors.Is(err, redis.Nil) {
-		logrus.Warnf("session not found: %v", err)
-		return nil, nil
-	} else if err != nil {
-		logrus.Errorf("failed to get session: %v", err)
-		return nil, err
-	}
-
-	return &session, nil
+// LockSession locks the session with the given session ID to prevent concurrent access.
+// ctx: The context for the operation.
+// sessionID: The unique session ID for the session to be locked.
+func (c *Cache) LockSession(ctx context.Context, sessionID string) (store.UnlockFunc, error) {
+	return c.Lock(ctx, sessionID)
 }

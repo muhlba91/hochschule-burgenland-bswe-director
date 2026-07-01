@@ -20,17 +20,21 @@ type Flow interface {
 // sessionStore: The session store for managing sessions.
 // requestStore: The request store for managing requests.
 // broadcastStore: The broadcast store for managing broadcasts.
+// locker: The locker for managing locks.
 // requestor: The requestor instance for the flows.
+// store: The global store instance for the flows.
 // registry: The registry to register the flows.
 func Init(
 	sessionStore store.SessionStore,
 	requestStore store.RequestStore,
 	broadcastStore store.BroadcastStore,
+	locker store.Locker,
 	requestor *orchestrator.Requestor,
+	store store.Store,
 	registry *orchestrator.Registry,
 ) {
 	activeFlows := []Flow{
-		pokemon.NewGameplay(sessionStore, requestStore, broadcastStore, requestor),
+		pokemon.NewGameplay(sessionStore, requestStore, broadcastStore, locker, requestor, store),
 	}
 
 	for _, flow := range activeFlows {

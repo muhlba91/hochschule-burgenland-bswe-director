@@ -17,7 +17,7 @@ type EventHandlerFunc func(context.Context, json.RawMessage, *connection.Data) *
 type SessionGeneratorEventHandlerFunc func(context.Context, json.RawMessage, *connection.Data) (*string, *message.Message)
 
 // CallbackHandlerFunc defines the function signature for handling events.
-type CallbackHandlerFunc func(context.Context, json.RawMessage, session.Session, *callback.Request) (any, error)
+type CallbackHandlerFunc func(context.Context, json.RawMessage, session.Session, *callback.Request) error
 
 // Registry holds the main logic and handlers.
 type Registry struct {

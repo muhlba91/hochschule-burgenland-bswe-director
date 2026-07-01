@@ -27,4 +27,6 @@ func (gp *Gameplay) Init(reg *orchestrator.Registry) {
 	)
 
 	orchestrator.RegisterCallbackHandler(reg, gp.generateActionName(action.TypeStart), gp.StartCallback)
+	orchestrator.RegisterCallbackHandler(reg, gp.generateActionName(action.TypeTurn), gp.TurnCallback)
+	orchestrator.RegisterCallbackHandler(reg, gp.generateActionName(action.TypeAttack), gp.AttackCallback)
 }

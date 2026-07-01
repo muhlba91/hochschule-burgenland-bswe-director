@@ -8,8 +8,8 @@ type Player struct {
 	Bench []*Pokemon `json:"bench" redis:"bench"`
 	// Hand is the list of cards in the player's hand.
 	Hand []*Card `json:"hand" redis:"hand"`
-	// Deck is the list of cards in the player's deck.
-	Deck []*Card `json:"deck" redis:"deck"`
+	// Deck is the list of cards in the player's deck. Can be empty.
+	Deck []*Card `json:"deck,omitempty" redis:"deck,omitempty"`
 	// DiscardPile is the list of cards in the player's discard pile.
 	DiscardPile []*Card `json:"discard_pile" redis:"discard_pile"`
 	// PrizeCards is the list of prize cards the player has.
