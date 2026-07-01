@@ -13,6 +13,12 @@ import (
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 )
 
+type healthCheckResult struct {
+	name   string
+	status string
+	up     bool
+}
+
 // shutdownTimeout defines the duration for graceful shutdown of the health check server.
 const shutdownTimeout = 5 * time.Second
 

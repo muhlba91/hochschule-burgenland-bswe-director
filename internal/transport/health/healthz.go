@@ -9,27 +9,7 @@ import (
 // w: The HTTP response writer.
 // r: The HTTP request.
 func (s *Server) healthzHandler(w http.ResponseWriter, _ *http.Request) {
-	status := http.StatusOK
-	components := map[string]string{
-		"sessionStore":   StatusUp,
-		"requestStore":   StatusUp,
-		"broadcastStore": StatusUp,
-	}
-
-	if !s.sessionStore.IsConnected() {
-		status = http.StatusServiceUnavailable
-		components["sessionStore"] = StatusDown
-	}
-
-	if !s.requestStore.IsConnected() {
-		status = http.StatusServiceUnavailable
-		components["requestStore"] = StatusDown
-	}
-
-	if !s.broadcastStore.IsConnected() {
-		status = http.StatusServiceUnavailable
-		components["broadcastStore"] = StatusDown
-	}
+	status, components := s.checkHealth()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
