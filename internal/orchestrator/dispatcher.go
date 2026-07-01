@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback/response"
@@ -83,7 +84,10 @@ func (d *Dispatcher) HandleCallback(
 ) error {
 	request, rErr := d.requestStore.GetRequest(ctx, requestID)
 	if rErr != nil || request == nil {
-		logrus.Infof("request not found: %s", requestID)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldRequestID: requestID,
+			logging.FieldError:     rErr,
+		}).Info("request not found")
 		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingRequest))
 	}
 
@@ -97,31 +101,48 @@ func (d *Dispatcher) HandleCallback(
 
 	session, sErr := d.sessionStore.GetBaseSession(ctx, request.SessionID)
 	if sErr != nil {
-		logrus.Infof("session not found: %s", request.SessionID)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: request.SessionID,
+			logging.FieldError:     sErr,
+		}).Info("session not found")
 		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingSession))
 	}
 
 	if request.Parallelization != 0 && !session.IsRequestExpected(requestID) {
-		logrus.Infof("request %s is not expected for session %s", requestID, request.SessionID)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldRequestID: requestID,
+			logging.FieldSessionID: request.SessionID,
+		}).Info("request is not expected for session")
 		return echo.NewHTTPError(http.StatusConflict, response.NewError(response.ErrCallbackNotExpected))
 	}
 
 	cErr := d.registry.HandleCallback(ctx, session, request, body)
 	if cErr != nil {
-		logrus.Errorf("failed to handle callback for request %s: %v", requestID, cErr)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldRequestID: requestID,
+			logging.FieldSessionID: request.SessionID,
+			logging.FieldError:     cErr,
+		}).Error("failed to handle callback")
 		return echo.NewHTTPError(http.StatusInternalServerError, response.NewError(cErr))
 	}
 
 	// reload session in case it was updated during callback handling
 	session, sErr = d.sessionStore.GetBaseSession(ctx, request.SessionID)
 	if sErr != nil {
-		logrus.Infof("session not found: %s", request.SessionID)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: request.SessionID,
+			logging.FieldError:     sErr,
+		}).Info("session not found during reload")
 		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingSession))
 	}
 
 	uErr := d.requestStore.CompleteRequest(ctx, session, request)
 	if uErr != nil {
-		logrus.Errorf("failed to complete request %s: %v", requestID, uErr)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldRequestID: requestID,
+			logging.FieldSessionID: request.SessionID,
+			logging.FieldError:     uErr,
+		}).Error("failed to complete request")
 		return echo.NewHTTPError(http.StatusInternalServerError, response.NewError(response.ErrCompletionFailed))
 	}
 

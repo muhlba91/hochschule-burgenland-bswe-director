@@ -6,6 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback"
@@ -16,7 +17,10 @@ import (
 // request: The request data to be stored in the cache.
 func (c *Cache) CreateRequest(ctx context.Context, request *callback.Request) error {
 	if err := c.Set(ctx, request.ID, request, constants.DefaultRequestExpiration); err != nil {
-		logrus.Errorf("failed to save request: %v", err)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldRequestID: request.ID,
+			logging.FieldError:     err,
+		}).Error("failed to save request")
 		return err
 	}
 
@@ -42,7 +46,10 @@ func (c *Cache) GetRequest(ctx context.Context, requestID string) (*callback.Req
 
 	var requestModel callback.Request
 	if uErr := json.Unmarshal([]byte(*request), &requestModel); uErr != nil {
-		logrus.Errorf("failed to unmarshal request data: %v", uErr)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldRequestID: requestID,
+			logging.FieldError:     uErr,
+		}).Error("failed to unmarshal request data")
 		return nil, uErr
 	}
 
@@ -72,7 +79,10 @@ func (c *Cache) CompleteRequest(
 	}
 
 	if err := c.Delete(ctx, request.ID); err != nil {
-		logrus.Errorf("failed to delete request: %v", err)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldRequestID: request.ID,
+			logging.FieldError:     err,
+		}).Error("failed to delete request")
 		return err
 	}
 

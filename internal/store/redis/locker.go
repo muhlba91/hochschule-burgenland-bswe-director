@@ -8,6 +8,7 @@ import (
 	"github.com/go-redsync/redsync/v4"
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
 )
@@ -47,18 +48,30 @@ func (c *Cache) LockWithOptions(
 		redsync.WithRetryDelay(delay),
 	)
 
-	logrus.Debugf("attempting to acquire lock for key: %s", lockKey)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldLockKey: lockKey,
+	}).Debug("attempting to acquire lock")
 	if err := mutex.LockContext(ctx); err != nil {
-		logrus.Errorf("failed to acquire lock for key %s: %v", lockKey, err)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldLockKey: lockKey,
+			logging.FieldError:   err,
+		}).Error("failed to acquire lock")
 		return nil, err
 	}
-	logrus.Debugf("acquired lock for key: %s", lockKey)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldLockKey: lockKey,
+	}).Debug("acquired lock")
 
 	return func(uCtx context.Context) {
-		logrus.Debugf("releasing lock for key: %s", lockKey)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldLockKey: lockKey,
+		}).Debug("releasing lock")
 		_, err := mutex.UnlockContext(uCtx)
 		if err != nil {
-			logrus.Errorf("error releasing lock for key %s: %v", lockKey, err)
+			logrus.WithFields(logrus.Fields{
+				logging.FieldLockKey: lockKey,
+				logging.FieldError:   err,
+			}).Error("error releasing lock")
 		}
 	}, nil
 }

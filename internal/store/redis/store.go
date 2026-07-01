@@ -8,6 +8,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 )
 
 // IsConnected checks the connection to the redis server.
@@ -34,13 +36,22 @@ func (c *Cache) Exists(ctx context.Context, key string) (bool, error) {
 //nolint:nilnil // This function returns nil, nil when the key is not found, which is a valid case.
 func (c *Cache) Get(ctx context.Context, key string) (*string, error) {
 	data, err := c.client.Get(ctx, key).Result()
-	logrus.Debugf("retrieved data for key %s: %s", key, data)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldKey:  key,
+		logging.FieldData: data,
+	}).Debug("retrieved data from redis")
 
 	if errors.Is(err, redis.Nil) || data == "" {
-		logrus.Warnf("key not found: %v", err)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldKey:   key,
+			logging.FieldError: err,
+		}).Debug("key not found in redis")
 		return nil, nil
 	} else if err != nil {
-		logrus.Errorf("failed to get data: %v", err)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldKey:   key,
+			logging.FieldError: err,
+		}).Error("failed to get data from redis")
 		return nil, err
 	}
 
@@ -55,9 +66,15 @@ func (c *Cache) Get(ctx context.Context, key string) (*string, error) {
 func (c *Cache) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
 	data, _ := json.Marshal(value)
 
-	logrus.Debugf("saving data for key %s: %s", key, data)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldKey:  key,
+		logging.FieldData: string(data),
+	}).Debug("saving data to redis")
 	if err := c.client.Set(ctx, key, data, expiration).Err(); err != nil {
-		logrus.Errorf("failed to save data: %v", err)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldKey:   key,
+			logging.FieldError: err,
+		}).Error("failed to save data to redis")
 		return err
 	}
 
@@ -69,7 +86,10 @@ func (c *Cache) Set(ctx context.Context, key string, value any, expiration time.
 // key: The key to be deleted from the cache.
 func (c *Cache) Delete(ctx context.Context, key string) error {
 	if err := c.client.Del(ctx, key).Err(); err != nil {
-		logrus.Errorf("failed to delete data: %v", err)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldKey:   key,
+			logging.FieldError: err,
+		}).Error("failed to delete data from redis")
 		return err
 	}
 

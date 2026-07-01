@@ -40,7 +40,7 @@ func configureServer(http *Server) {
 				"uri":    v.URI,
 				"status": v.Status,
 				"error":  v.Error,
-			}).Info("request")
+			}).Debug("request")
 
 			return nil
 		},

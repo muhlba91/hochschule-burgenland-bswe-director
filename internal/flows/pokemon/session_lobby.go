@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/session"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/connection"
@@ -40,7 +41,11 @@ func (gp *Gameplay) Create(ctx context.Context, create *event.Create, _ *connect
 		})
 	}
 
-	logrus.Debugf("Create session response: sid=%v, event=%s, payload=%s", sessionID, msgEvent, payload)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldSessionID: sessionID,
+		logging.FieldEvent:     msgEvent,
+		logging.FieldPayload:   string(payload),
+	}).Debug("create session response")
 
 	return nil, &message.Message{
 		Event:   msgEvent,
@@ -59,7 +64,9 @@ func (gp *Gameplay) List(ctx context.Context, _ *event.List, _ *connection.Data)
 		Sessions: sessions,
 	})
 
-	logrus.Debugf("List sessions response: payload=%s", payload)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldPayload: string(payload),
+	}).Debug("list sessions response")
 
 	return &message.Message{
 		Event:   gp.generateEventName(event.TypeListing),
@@ -97,12 +104,11 @@ func (gp *Gameplay) Join(
 	default:
 		connected := false
 		if player, ok := session.Players[join.Player]; ok && !player.Connected {
-			logrus.Debugf(
-				"player %s is joining the session with connection ID: %s, %s",
-				player.ID,
-				*sid,
-				connectionData.ConnectionID,
-			)
+			logrus.WithFields(logrus.Fields{
+				logging.FieldPlayerID:     player.ID,
+				logging.FieldSessionID:    *sid,
+				logging.FieldConnectionID: connectionData.ConnectionID,
+			}).Debug("player is joining the session")
 			player.Connected = true
 			player.ConnectionID = &connectionData.ConnectionID
 			connectionData.InternalID = &player.ID
@@ -110,7 +116,10 @@ func (gp *Gameplay) Join(
 		}
 
 		if !connected {
-			logrus.Debugf("player %s is not a valid player for session: %s", join.Player, *sid)
+			logrus.WithFields(logrus.Fields{
+				logging.FieldPlayerID:  join.Player,
+				logging.FieldSessionID: *sid,
+			}).Debug("player is not a valid player for session")
 			break
 		}
 
@@ -125,7 +134,11 @@ func (gp *Gameplay) Join(
 		}
 	}
 
-	logrus.Debugf("Join session response: sid=%v, event=%s, payload=%s", *sid, msgEvent, payload)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldSessionID: *sid,
+		logging.FieldEvent:     msgEvent,
+		logging.FieldPayload:   string(payload),
+	}).Debug("join session response")
 
 	return sid, &message.Message{
 		Event:   msgEvent,

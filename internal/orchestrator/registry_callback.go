@@ -6,6 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback/response"
@@ -27,7 +28,11 @@ func (r *Registry) HandleCallback(
 		return requestHandler(ctx, payload, session, request)
 	}
 
-	logrus.Infof("no callback handler registered for action: %s", request.Action)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldAction:    request.Action,
+		logging.FieldSessionID: session.GetID(),
+		logging.FieldRequestID: request.ID,
+	}).Info("no callback handler registered")
 	return response.ErrNoMatchingRequest
 }
 
@@ -44,7 +49,12 @@ func RegisterCallbackHandler[T any](
 	registry.callbackHandlers[action] = func(ctx context.Context, raw json.RawMessage, session session.Session, request *callback.Request) error {
 		var payload T
 		if err := json.Unmarshal(raw, &payload); err != nil {
-			logrus.Infof("no callback handler registered for action: %s", request.Action)
+			logrus.WithFields(logrus.Fields{
+				logging.FieldAction:    request.Action,
+				logging.FieldSessionID: session.GetID(),
+				logging.FieldRequestID: request.ID,
+				logging.FieldError:     err,
+			}).Error("failed to unmarshal callback payload")
 			return response.ErrInvalidPayload
 		}
 

@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/orchestrator"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/connection"
@@ -35,7 +36,9 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 			OriginPatterns:     []string{"*"},
 		})
 		if err != nil {
-			logrus.Errorf("failed to accept websocket connection: %v", err)
+			logrus.WithFields(logrus.Fields{
+				logging.FieldError: err,
+			}).Error("failed to accept websocket connection")
 			return err
 		}
 		defer conn.Close(websocket.StatusInternalError, "")
@@ -56,9 +59,15 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 				var msg message.Message
 				if errRead := wsjson.Read(ctx, conn, &msg); errRead != nil {
 					if websocket.CloseStatus(errRead) == -1 {
-						logrus.Errorf("websocket read failed: %v", errRead)
+						logrus.WithFields(logrus.Fields{
+							logging.FieldError:     errRead,
+							logging.FieldSessionID: connData.SessionID,
+						}).Error("websocket read failed")
 					} else {
-						logrus.Infof("websocket closed by client: %v", errRead)
+						logrus.WithFields(logrus.Fields{
+							logging.FieldError:     errRead,
+							logging.FieldSessionID: connData.SessionID,
+						}).Info("websocket closed by client")
 					}
 					return
 				}
@@ -81,16 +90,18 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 		for {
 			select {
 			case msg := <-msgCh:
-				logrus.Debugf("received message: %s", msg)
+				logrus.WithFields(logrus.Fields{
+					logging.FieldSessionID: connData.SessionID,
+					logging.FieldEvent:     msg.Event,
+				}).Debug("received websocket message")
 				sid := dispatcher.Handle(ctx, conn, connData, msg)
 
 				if sid != nil && connData.SessionID != nil && *sid != *connData.SessionID {
-					logrus.Debugf(
-						"connection requested a new session, but already subscribed to a session with connection: %s, %s %s",
-						*sid,
-						*connData.SessionID,
-						connData.ConnectionID,
-					)
+					logrus.WithFields(logrus.Fields{
+						"new_session_id":          *sid,
+						"old_session_id":          *connData.SessionID,
+						logging.FieldConnectionID: connData.ConnectionID,
+					}).Debug("connection requested a new session, but already subscribed to a session")
 					handleDisconnect(ctx, dispatcher, conn, connData)
 					_ = broadcastSub.Close()
 					connData.SessionID = nil
@@ -98,15 +109,17 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 					broadcastCh = nil
 				}
 				if sid != nil && (connData.SessionID == nil || *sid != *connData.SessionID) {
-					logrus.Debugf(
-						"subscribing to new session with connection: %s, %s",
-						*sid,
-						connData.ConnectionID,
-					)
+					logrus.WithFields(logrus.Fields{
+						logging.FieldSessionID:    *sid,
+						logging.FieldConnectionID: connData.ConnectionID,
+					}).Debug("subscribing to new session")
 					connData.SessionID = sid
 					sub, subErr := dispatcher.Subscribe(ctx, *connData.SessionID)
 					if subErr != nil {
-						logrus.Errorf("failed to subscribe to session %s: %v", *connData.SessionID, subErr)
+						logrus.WithFields(logrus.Fields{
+							logging.FieldSessionID: *connData.SessionID,
+							logging.FieldError:     subErr,
+						}).Error("failed to subscribe to session")
 						continue
 					}
 					broadcastSub = sub
@@ -114,9 +127,14 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 				}
 
 			case msgPayload := <-broadcastCh:
-				logrus.Debugf("received broadcast message: %s", msgPayload)
+				logrus.WithFields(logrus.Fields{
+					logging.FieldSessionID: connData.SessionID,
+				}).Debug("received broadcast message")
 				if errWrite := wsjson.Write(ctx, conn, json.RawMessage(msgPayload)); errWrite != nil {
-					logrus.Errorf("websocket write failed: %v", errWrite)
+					logrus.WithFields(logrus.Fields{
+						logging.FieldSessionID: connData.SessionID,
+						logging.FieldError:     errWrite,
+					}).Error("websocket write failed")
 					continue
 				}
 
@@ -128,7 +146,10 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 				errPing := conn.Ping(pingCtx)
 				cancel()
 				if errPing != nil {
-					logrus.Errorf("websocket ping failed: %v", errPing)
+					logrus.WithFields(logrus.Fields{
+						logging.FieldSessionID: connData.SessionID,
+						logging.FieldError:     errPing,
+					}).Error("websocket ping failed")
 					return nil
 				}
 
@@ -152,11 +173,10 @@ func handleDisconnect(
 	connectionData *connection.Data,
 ) {
 	if connectionData.SessionID != nil {
-		logrus.Infof(
-			"handling disconnect for session and connection: %s %s",
-			*connectionData.SessionID,
-			connectionData.ConnectionID,
-		)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID:    *connectionData.SessionID,
+			logging.FieldConnectionID: connectionData.ConnectionID,
+		}).Info("handling disconnect for session and connection")
 
 		payload, _ := json.Marshal(connectionData)
 		dispatcher.Handle(ctx, conn, connectionData, message.Message{

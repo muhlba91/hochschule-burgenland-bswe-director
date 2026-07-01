@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/orchestrator"
 )
 
@@ -46,9 +47,14 @@ func NewServer(
 // Start starts the echo server.
 func (s *Server) Start() {
 	go func() {
-		logrus.Infof("starting server on %s", s.Address)
+		logrus.WithFields(logrus.Fields{
+			"address": s.Address,
+		}).Info("starting server")
 		if err := s.Server.Start(s.Address); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logrus.Errorf("failed to start server: %v", err)
+			logrus.WithFields(logrus.Fields{
+				"address":          s.Address,
+				logging.FieldError: err,
+			}).Error("failed to start server")
 		}
 	}()
 }
@@ -65,6 +71,8 @@ func (s *Server) Stop() {
 	defer cancel()
 
 	if err := s.Server.Shutdown(ctx); err != nil {
-		logrus.Errorf("failed to shutdown server: %v", err)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldError: err,
+		}).Error("failed to shutdown server")
 	}
 }

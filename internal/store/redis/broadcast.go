@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
 )
@@ -32,9 +33,17 @@ func (c *Cache) Broadcast(ctx context.Context, sessionID string, data any) error
 	channelKey := fmt.Sprintf("%s:%s", sessionID, constants.BroadcastChannel)
 	payload, _ := json.Marshal(data)
 
-	logrus.Debugf("publishing broadcast to channelKey: %s, data: %s", channelKey, payload)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldSessionID: sessionID,
+		"channel_key":          channelKey,
+		logging.FieldData:      string(payload),
+	}).Debug("publishing broadcast")
 	if err := c.client.Publish(ctx, channelKey, payload).Err(); err != nil {
-		logrus.Errorf("failed to save broadcast: %v", err)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: sessionID,
+			"channel_key":          channelKey,
+			logging.FieldError:     err,
+		}).Error("failed to publish broadcast")
 		return err
 	}
 

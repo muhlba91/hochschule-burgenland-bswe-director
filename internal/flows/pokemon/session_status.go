@@ -6,6 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/connection"
 	globalEvent "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/event"
@@ -41,12 +42,11 @@ func (gp *Gameplay) Disconnect(
 		disconnected := false
 		for _, player := range session.Players {
 			if player.ConnectionID != nil && *player.ConnectionID == connectionData.ConnectionID {
-				logrus.Debugf(
-					"player %s is disconnecting from the session with connection ID: %s, %s",
-					player.ID,
-					*connectionData.SessionID,
-					connectionData.ConnectionID,
-				)
+				logrus.WithFields(logrus.Fields{
+					logging.FieldPlayerID:     player.ID,
+					logging.FieldSessionID:    *connectionData.SessionID,
+					logging.FieldConnectionID: connectionData.ConnectionID,
+				}).Debug("player is disconnecting from the session")
 				player.Connected = false
 				player.ConnectionID = nil
 				disconnected = true
@@ -55,11 +55,10 @@ func (gp *Gameplay) Disconnect(
 		}
 
 		if !disconnected {
-			logrus.Infof(
-				"connection ID: %s is not associated with any player in session for disconnect: %s",
-				connectionData.ConnectionID,
-				*connectionData.SessionID,
-			)
+			logrus.WithFields(logrus.Fields{
+				logging.FieldConnectionID: connectionData.ConnectionID,
+				logging.FieldSessionID:    *connectionData.SessionID,
+			}).Info("connection ID is not associated with any player in session for disconnect")
 		}
 
 		if !disconnected {
@@ -75,12 +74,11 @@ func (gp *Gameplay) Disconnect(
 		}
 	}
 
-	logrus.Debugf(
-		"Disconnect session response: sid=%v, event=%s, payload=%s",
-		*connectionData.SessionID,
-		msgEvent,
-		payload,
-	)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldSessionID: *connectionData.SessionID,
+		logging.FieldEvent:     msgEvent,
+		logging.FieldPayload:   string(payload),
+	}).Debug("disconnect session response")
 
 	return &message.Message{
 		Event:   msgEvent,
@@ -100,7 +98,10 @@ func (gp *Gameplay) ConnectionInformation(
 	msgEvent := string(globalEvent.ConnectionInformation)
 	payload, _ := json.Marshal(connectionData)
 
-	logrus.Debugf("Connection information response: event=%s, payload=%s", msgEvent, payload)
+	logrus.WithFields(logrus.Fields{
+		logging.FieldEvent:   msgEvent,
+		logging.FieldPayload: string(payload),
+	}).Debug("connection information response")
 
 	return &message.Message{
 		Event:   msgEvent,

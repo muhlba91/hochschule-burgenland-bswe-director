@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/action"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
@@ -50,33 +51,41 @@ func (gp *Gameplay) StartStop(
 		evnt = event.TypeStarted
 	}
 
-	logrus.Debugf("broadcasting start/stop event: %s for session: %s", evnt, session.GetID())
+	logrus.WithFields(logrus.Fields{
+		logging.FieldEvent:     evnt,
+		logging.FieldSessionID: session.GetID(),
+	}).Debug("broadcasting start/stop event")
 	payload, _ := json.Marshal(connectionData)
 	_ = gp.store.Broadcast(ctx, session.GetID(), &message.Message{
 		Event:   gp.generateEventName(evnt),
 		Payload: payload,
 	})
 
-	logrus.Debugf("broadcasting state for session: %s", session.GetID())
+	logrus.WithFields(logrus.Fields{
+		logging.FieldSessionID: session.GetID(),
+	}).Debug("broadcasting state")
 	_ = gp.store.BroadcastStateForSession(ctx, session.GetID())
 
 	switch evnt {
 	case event.TypeNotStarted:
-		logrus.Debugf("session %s is not started yet", session.GetID())
+		logrus.WithFields(logrus.Fields{logging.FieldSessionID: session.GetID()}).Debug("session is not started yet")
 	case event.TypeStarted:
-		logrus.Debugf("session %s is started", session.GetID())
+		logrus.WithFields(logrus.Fields{logging.FieldSessionID: session.GetID()}).Debug("session is started")
 		gp.Start(ctx, session)
 	case event.TypePaused:
-		logrus.Debugf("session %s is paused", session.GetID())
+		logrus.WithFields(logrus.Fields{logging.FieldSessionID: session.GetID()}).Debug("session is paused")
 		_ = gp.requestor.CleanRequestQueue(ctx, session)
 	case event.TypeResumed:
-		logrus.Debugf("session %s is resumed", session.GetID())
+		logrus.WithFields(logrus.Fields{logging.FieldSessionID: session.GetID()}).Debug("session is resumed")
 		_ = gp.NextTurn(ctx, session)
 	case event.TypeFinished:
-		logrus.Debugf("session %s is already finished", session.GetID())
+		logrus.WithFields(logrus.Fields{logging.FieldSessionID: session.GetID()}).Debug("session is already finished")
 		_ = gp.broadcastWinner(ctx, session)
 	default:
-		logrus.Warnf("unknown event: %s for session: %s", evnt, session.GetID())
+		logrus.WithFields(logrus.Fields{
+			logging.FieldEvent:     evnt,
+			logging.FieldSessionID: session.GetID(),
+		}).Warn("unknown event")
 	}
 }
 
@@ -84,12 +93,17 @@ func (gp *Gameplay) StartStop(
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // session: The current game session containing player connection information.
 func (gp *Gameplay) Start(ctx context.Context, session *pkgPokemonSession.Session) {
-	logrus.Infof("starting gameplay for session: %s", session.GetID())
+	logrus.WithFields(logrus.Fields{
+		logging.FieldSessionID: session.GetID(),
+	}).Info("starting gameplay")
 
 	session.StartedAt = time.Now().Unix()
 	uErr := gp.store.UpdateSession(ctx, session)
 	if uErr != nil {
-		logrus.Errorf("failed to update session %s with start time: %v", session.GetID(), uErr)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: session.GetID(),
+			logging.FieldError:     uErr,
+		}).Error("failed to update session with start time")
 	}
 
 	state := &state.State{
@@ -97,7 +111,10 @@ func (gp *Gameplay) Start(ctx context.Context, session *pkgPokemonSession.Sessio
 	}
 	sErr := gp.store.CreateState(ctx, state)
 	if sErr != nil {
-		logrus.Errorf("failed to create state for session %s: %v", session.GetID(), sErr)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: session.GetID(),
+			logging.FieldError:     sErr,
+		}).Error("failed to create state")
 	}
 
 	requestBuilder := func(url string) (*callback.Request, callback.RequestData) {
@@ -139,7 +156,9 @@ func (gp *Gameplay) StartCallback(
 	}
 
 	if len(session.GetNextRequests()) == 0 {
-		logrus.Debugf("all start callbacks received for session %s, initiating next turn", session.GetID())
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: session.GetID(),
+		}).Debug("all start callbacks received, initiating next turn")
 		_ = gp.store.BroadcastState(ctx, state)
 		return gp.NextTurn(ctx, session)
 	}
@@ -154,7 +173,10 @@ func (gp *Gameplay) StartCallback(
 func (gp *Gameplay) analyzeState(ctx context.Context, session pkgSession.Session, state *state.State) error {
 	pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
 	if psErr != nil || pokemonSession == nil {
-		logrus.Errorf("failed to get session %s: %v", session.GetID(), psErr)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: session.GetID(),
+			logging.FieldError:     psErr,
+		}).Error("failed to get session")
 		return psErr
 	}
 
@@ -162,29 +184,30 @@ func (gp *Gameplay) analyzeState(ctx context.Context, session pkgSession.Session
 		opponent := pokemonSession.GetOpponentForID(playerID)
 
 		if len(playerState.PrizeCards) == 0 {
-			logrus.Infof("player %s has taken all prize cards, session %s finished", playerID, pokemonSession.GetID())
+			logrus.WithFields(logrus.Fields{
+				logging.FieldPlayerID:  playerID,
+				logging.FieldSessionID: pokemonSession.GetID(),
+			}).Info("player has taken all prize cards, session finished")
 			pokemonSession.Winner = &playerID
 			break
 		}
 
 		if playerState.Active == nil || playerState.Active.HP <= 0 {
-			logrus.Infof(
-				"player %s's active pokemon is dead, opponent %s wins session %s",
-				playerID,
-				opponent.ID,
-				pokemonSession.GetID(),
-			)
+			logrus.WithFields(logrus.Fields{
+				logging.FieldPlayerID:  playerID,
+				"opponent_id":          opponent.ID,
+				logging.FieldSessionID: pokemonSession.GetID(),
+			}).Info("player's active pokemon is dead, opponent wins")
 			pokemonSession.Winner = &opponent.ID
 			break
 		}
 
 		if len(playerState.Deck) == 0 {
-			logrus.Infof(
-				"player %s's deck is empty, opponent %s wins session %s",
-				playerID,
-				opponent.ID,
-				pokemonSession.GetID(),
-			)
+			logrus.WithFields(logrus.Fields{
+				logging.FieldPlayerID:  playerID,
+				"opponent_id":          opponent.ID,
+				logging.FieldSessionID: pokemonSession.GetID(),
+			}).Info("player's deck is empty, opponent wins")
 			pokemonSession.Winner = &opponent.ID
 			break
 		}
@@ -192,7 +215,10 @@ func (gp *Gameplay) analyzeState(ctx context.Context, session pkgSession.Session
 
 	if pokemonSession.Winner != nil {
 		if err := gp.store.UpdateSession(ctx, pokemonSession); err != nil {
-			logrus.Errorf("failed to update session %s with winner: %v", pokemonSession.GetID(), err)
+			logrus.WithFields(logrus.Fields{
+				logging.FieldSessionID: pokemonSession.GetID(),
+				logging.FieldError:     err,
+			}).Error("failed to update session with winner")
 		}
 
 		return gp.broadcastWinner(ctx, pokemonSession)
@@ -206,7 +232,9 @@ func (gp *Gameplay) analyzeState(ctx context.Context, session pkgSession.Session
 // session: The current game session containing player connection information and the winner.
 func (gp *Gameplay) broadcastWinner(ctx context.Context, session *pkgPokemonSession.Session) error {
 	if session.Winner == nil {
-		logrus.Warnf("no winner to broadcast for session %s", session.GetID())
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: session.GetID(),
+		}).Warn("no winner to broadcast")
 		return nil
 	}
 

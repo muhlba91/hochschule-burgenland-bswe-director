@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
@@ -21,7 +22,10 @@ import (
 // data: The data to be stored in the session.
 func (c *Cache) CreateSession(ctx context.Context, sessionID string, data any) error {
 	if err := c.Set(ctx, sessionID, data, constants.DefaultSessionExpiration); err != nil {
-		logrus.Errorf("failed to save session: %v", err)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: sessionID,
+			logging.FieldError:     err,
+		}).Error("failed to save session")
 		return err
 	}
 
@@ -52,7 +56,10 @@ func (c *Cache) ListSessions(ctx context.Context, flowName string) map[string]st
 	for _, key := range keys {
 		val, gEerr := c.Get(ctx, key)
 		if gEerr != nil || val == nil {
-			logrus.Errorf("failed to get session data for key %s: %v", key, gEerr)
+			logrus.WithFields(logrus.Fields{
+				logging.FieldKey:   key,
+				logging.FieldError: gEerr,
+			}).Error("failed to get session data")
 			continue
 		}
 		sessions[key] = *val
@@ -76,14 +83,17 @@ func (c *Cache) GetSession(ctx context.Context, sessionID string) (*string, erro
 func (c *Cache) GetBaseSession(ctx context.Context, sessionID string) (session.Session, error) {
 	sess, sErr := c.GetSession(ctx, sessionID)
 	if sErr != nil || sess == nil {
-		logrus.Infof("session not found: %s", sessionID)
+		logrus.Debugf("session not found: %s", sessionID)
 		return nil, echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingSession))
 	}
 
 	var session session.Base
 	usErr := json.Unmarshal([]byte(*sess), &session)
 	if usErr != nil {
-		logrus.Errorf("failed to unmarshal session for request %s: %v", sessionID, usErr)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: sessionID,
+			logging.FieldError:     usErr,
+		}).Error("failed to unmarshal session")
 		return nil, echo.NewHTTPError(http.StatusInternalServerError, response.NewError(response.ErrNoMatchingSession))
 	}
 

@@ -28,7 +28,10 @@ var (
 func main() {
 	logging.Init()
 
-	logrus.Infof("version: %s (%s)", Version, Gitsha)
+	logrus.WithFields(logrus.Fields{
+		"version": Version,
+		"gitsha":  Gitsha,
+	}).Info("application starting")
 
 	cfg := configuration.Init()
 

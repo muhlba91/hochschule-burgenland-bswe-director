@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/action"
 	pkgSession "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
@@ -17,17 +18,25 @@ import (
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // session: The current game session containing player connection information.
 func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) error {
-	logrus.Infof("starting next turn for session: %s", session.GetID())
+	logrus.WithFields(logrus.Fields{
+		logging.FieldSessionID: session.GetID(),
+	}).Info("starting next turn")
 
 	pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
 	if psErr != nil || pokemonSession == nil {
-		logrus.Errorf("failed to get session %s: %v", session.GetID(), psErr)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: session.GetID(),
+			logging.FieldError:     psErr,
+		}).Error("failed to get session")
 		return psErr
 	}
 
 	state, sErr := gp.store.GetState(ctx, session.GetID())
 	if sErr != nil || state == nil {
-		logrus.Errorf("failed to get state for session %s: %v", session.GetID(), sErr)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: session.GetID(),
+			logging.FieldError:     sErr,
+		}).Error("failed to get state")
 		return sErr
 	}
 
@@ -84,12 +93,18 @@ func (gp *Gameplay) TurnCallback(
 
 	pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
 	if psErr != nil || pokemonSession == nil {
-		logrus.Errorf("failed to get session %s: %v", session.GetID(), psErr)
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: session.GetID(),
+			logging.FieldError:     psErr,
+		}).Error("failed to get session")
 		return psErr
 	}
 
 	if data.Attack != nil {
-		logrus.Debugf("player %s performed an attack in session %s", request.InternalID, session.GetID())
+		logrus.WithFields(logrus.Fields{
+			logging.FieldPlayerID:  request.InternalID,
+			logging.FieldSessionID: session.GetID(),
+		}).Debug("player performed an attack")
 
 		opponent := pokemonSession.GetOpponentForID(request.InternalID)
 
