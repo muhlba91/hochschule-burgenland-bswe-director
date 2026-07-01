@@ -96,11 +96,6 @@ func (d *Dispatcher) HandleCallback(
 		defer unlock(ctx)
 	}
 
-	if request.Completed {
-		logrus.Infof("request already completed: %s", requestID)
-		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrRequestAlreadyCompleted))
-	}
-
 	sess, sErr := d.sessionStore.GetSession(ctx, request.SessionID)
 	if sErr != nil || sess == nil {
 		logrus.Infof("session not found: %s", request.SessionID)

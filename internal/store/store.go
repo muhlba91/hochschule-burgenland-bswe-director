@@ -29,6 +29,11 @@ type Store interface {
 	// value: The value to be stored in the store.
 	// expiration: The duration after which the key-value pair should expire.
 	Set(ctx context.Context, key string, value any, expiration time.Duration) error
+
+	// Delete removes the value associated with the given key from the store.
+	// ctx: The context for the operation.
+	// key: The key to be deleted from the store.
+	Delete(ctx context.Context, key string) error
 }
 
 // SessionStore defines the interface for managing sessions in the store.

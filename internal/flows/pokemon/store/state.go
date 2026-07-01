@@ -39,7 +39,7 @@ func (w *Wrapper) BroadcastState(ctx context.Context, state *state.State) error 
 // sessionID: The unique session ID for the game session.
 func (w *Wrapper) BroadcastStateForSession(ctx context.Context, sessionID string) error {
 	state, err := w.GetState(ctx, sessionID)
-	if err != nil {
+	if err != nil || state == nil {
 		return err
 	}
 

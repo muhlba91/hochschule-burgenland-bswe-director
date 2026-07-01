@@ -156,7 +156,7 @@ func (gp *Gameplay) StartCallback(
 // state: The current state of the game, including player statuses and other relevant information.
 func (gp *Gameplay) analyzeState(ctx context.Context, session pkgSession.Session, state *state.State) error {
 	pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
-	if psErr != nil {
+	if psErr != nil || pokemonSession == nil {
 		logrus.Errorf("failed to get session %s: %v", session.GetID(), psErr)
 		return psErr
 	}

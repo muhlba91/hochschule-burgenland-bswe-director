@@ -63,7 +63,7 @@ func (r *Requestor) CheckParallelizationRestriction(
 	count := 0
 	for _, rid := range session.GetNextRequests() {
 		pr, prErr := r.requestorStore.GetRequest(ctx, rid)
-		if prErr != nil {
+		if prErr != nil || pr == nil {
 			logrus.Errorf("failed to retrieve pending request %s for session %s: %v", rid, session.GetID(), prErr)
 			continue
 		}
@@ -157,12 +157,7 @@ func (r *Requestor) CreateRequest(
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // requestID: The ID of the request to be retrieved.
 func (r *Requestor) GetRequest(ctx context.Context, requestID string) (*callbackModel.Request, error) {
-	request, err := r.requestorStore.GetRequest(ctx, requestID)
-	if err != nil {
-		logrus.Errorf("failed to retrieve request %s: %v", requestID, err)
-		return nil, err
-	}
-	return request, nil
+	return r.requestorStore.GetRequest(ctx, requestID)
 }
 
 // CleanRequestQueue cleans the request queue for a given session.
@@ -176,7 +171,7 @@ func (r *Requestor) CleanRequestQueue(ctx context.Context, session session.Sessi
 
 	for _, rid := range session.GetNextRequests() {
 		request, gErr := r.GetRequest(ctx, rid)
-		if gErr != nil {
+		if gErr != nil || request == nil {
 			logrus.Errorf("failed to retrieve request %s for session %s: %v", rid, session.GetID(), gErr)
 			return gErr
 		}

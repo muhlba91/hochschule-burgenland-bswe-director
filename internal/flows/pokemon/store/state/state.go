@@ -46,7 +46,7 @@ func (s *Store) UpdateState(ctx context.Context, state *state.State) error {
 // sessionID: The unique session ID for the game session.
 func (s *Store) GetState(ctx context.Context, sessionID string) (*state.State, error) {
 	stateData, err := s.store.Get(ctx, getStateKey(sessionID))
-	if err != nil {
+	if err != nil || stateData == nil {
 		return nil, err
 	}
 

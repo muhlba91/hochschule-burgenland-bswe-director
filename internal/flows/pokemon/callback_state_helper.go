@@ -20,7 +20,7 @@ func (gp *Gameplay) updateState(
 	playerState *state.Player,
 ) (*state.State, error) {
 	state, sErr := gp.store.GetState(ctx, sessionID)
-	if sErr != nil {
+	if sErr != nil || state == nil {
 		logrus.Errorf("failed to get state for session %s: %v", sessionID, sErr)
 		return nil, sErr
 	}

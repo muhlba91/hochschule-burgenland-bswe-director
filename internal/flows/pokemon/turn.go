@@ -20,13 +20,13 @@ func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) er
 	logrus.Infof("starting next turn for session: %s", session.GetID())
 
 	pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
-	if psErr != nil {
+	if psErr != nil || pokemonSession == nil {
 		logrus.Errorf("failed to get session %s: %v", session.GetID(), psErr)
 		return psErr
 	}
 
 	state, sErr := gp.store.GetState(ctx, session.GetID())
-	if sErr != nil {
+	if sErr != nil || state == nil {
 		logrus.Errorf("failed to get state for session %s: %v", session.GetID(), sErr)
 		return sErr
 	}
@@ -93,7 +93,7 @@ func (gp *Gameplay) TurnCallback(
 	}
 
 	pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
-	if psErr != nil {
+	if psErr != nil || pokemonSession == nil {
 		logrus.Errorf("failed to get session %s: %v", session.GetID(), psErr)
 		return psErr
 	}

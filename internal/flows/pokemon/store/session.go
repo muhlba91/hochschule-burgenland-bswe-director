@@ -55,7 +55,7 @@ func (w *Wrapper) ListSessions(ctx context.Context) map[string]*pokemonSession.S
 // sessionID: The unique session ID for the new session.
 func (w *Wrapper) GetSession(ctx context.Context, sessionID string) (*pokemonSession.Session, error) {
 	sessionData, sErr := w.sessionStore.GetSession(ctx, sessionID)
-	if sErr != nil {
+	if sErr != nil || sessionData == nil {
 		return nil, sErr
 	}
 

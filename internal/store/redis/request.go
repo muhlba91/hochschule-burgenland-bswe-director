@@ -36,7 +36,7 @@ func (c *Cache) UpdateRequest(ctx context.Context, request *callback.Request) er
 // requestID: The unique request ID for the new request.
 func (c *Cache) GetRequest(ctx context.Context, requestID string) (*callback.Request, error) {
 	request, err := c.Get(ctx, requestID)
-	if err != nil {
+	if err != nil || request == nil {
 		return nil, err
 	}
 
@@ -58,18 +58,17 @@ func (c *Cache) CompleteRequest(
 	session session.Session,
 	request *callback.Request,
 ) error {
-	request.Completed = true
-	if err := c.UpdateRequest(ctx, request); err != nil {
-		logrus.Errorf("failed to update request %s: %v", request.ID, err)
-		return err
-	}
-
 	session.DeleteNextRequest(request.ID)
 	if err := c.UpdateSession(ctx, session.GetID(), session); err != nil {
 		logrus.Errorf("failed to update session %s after completing request %s: %v", session.GetID(), request.ID, err)
 		return err
 	}
 
-	logrus.Debugf("request %s marked as completed", request.ID)
+	if err := c.Delete(ctx, request.ID); err != nil {
+		logrus.Errorf("failed to delete request: %v", err)
+		return err
+	}
+
+	logrus.Debugf("request %s marked as completed and deleted", request.ID)
 	return nil
 }

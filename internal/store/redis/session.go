@@ -47,7 +47,7 @@ func (c *Cache) ListSessions(ctx context.Context, flowName string) map[string]st
 
 	for _, key := range keys {
 		val, gEerr := c.Get(ctx, key)
-		if gEerr != nil {
+		if gEerr != nil || val == nil {
 			logrus.Errorf("failed to get session data for key %s: %v", key, gEerr)
 			continue
 		}

@@ -63,3 +63,15 @@ func (c *Cache) Set(ctx context.Context, key string, value any, expiration time.
 
 	return nil
 }
+
+// Delete removes the key-value pair associated with the given key from the cache.
+// ctx: The context for the operation.
+// key: The key to be deleted from the cache.
+func (c *Cache) Delete(ctx context.Context, key string) error {
+	if err := c.client.Del(ctx, key).Err(); err != nil {
+		logrus.Errorf("failed to delete data: %v", err)
+		return err
+	}
+
+	return nil
+}
