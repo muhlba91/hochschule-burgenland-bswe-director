@@ -2,15 +2,10 @@ package requestor
 
 import (
 	"context"
-	"errors"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/orchestrator"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/session"
-	pkgSession "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
-	callbackModel "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback"
 )
 
 // Wrapper is a wrapper for the global requestor.
@@ -43,35 +38,5 @@ func (w *Wrapper) Send(
 	urls []string,
 	requestBuilder orchestrator.RequestBuilderFunc,
 ) error {
-	return w.requestor.Send(ctx, session, urls, requestBuilder, w.createRequest)
-}
-
-// createRequest sends a request to the specified endpoint and stores it in the cache.
-// ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
-// session: The current game session containing player connection information.
-// request: The request to be sent.
-// data: The data to be included in the request body.
-func (w *Wrapper) createRequest(
-	ctx context.Context,
-	session pkgSession.Session,
-	request *callbackModel.Request,
-	data callbackModel.RequestData,
-) error {
-	rErr := w.requestor.CreateRequest(ctx, session, request, data)
-	if rErr != nil {
-		return rErr
-	}
-
-	if request.Parallelization != 0 {
-		session.UpdateNextRequests(request.ID)
-		if err := w.store.UpdateSession(ctx, session); err != nil {
-			logrus.Errorf("failed to update session %s with next request %s: %v", session.GetID(), request.ID, err)
-			return err
-		}
-
-		return nil
-	}
-
-	logrus.Errorf("failed to generate unique request ID for session %s", session.GetID())
-	return errors.New("could not generate request")
+	return w.requestor.Send(ctx, session, urls, requestBuilder)
 }

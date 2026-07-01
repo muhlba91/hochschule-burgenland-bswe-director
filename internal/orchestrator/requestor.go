@@ -27,16 +27,23 @@ type RequestBuilderFunc func(string) (*callbackModel.Request, callbackModel.Requ
 // Requestor is responsible for handling requests related to the Pokémon game flow.
 type Requestor struct {
 	requestorStore store.RequestStore
+	sessionStore   store.SessionStore
 	httpClient     *http.Client
 	config         *configuration.Data
 }
 
 // NewRequestor creates a new instance of Requestor.
 // requestorStore: The store for managing requests.
+// sessionStore: The store for managing sessions.
 // config: The configuration data for the requestor.
-func NewRequestor(requestorStore store.RequestStore, config *configuration.Data) *Requestor {
+func NewRequestor(
+	requestorStore store.RequestStore,
+	sessionStore store.SessionStore,
+	config *configuration.Data,
+) *Requestor {
 	return &Requestor{
 		requestorStore: requestorStore,
+		sessionStore:   sessionStore,
 		httpClient: &http.Client{
 			Timeout: httpTimeout,
 		},
@@ -116,26 +123,31 @@ func (r *Requestor) CreateRequest(
 	request.ID = uuid.NewString()
 	data.SetCallback(fmt.Sprintf("%s/callback/%s", r.config.BaseURL, request.ID))
 
-	body, err := json.Marshal(data)
-	if err != nil {
-		logrus.Errorf("failed to marshal request body for request %s: %v", request.ID, err)
-		return err
+	body, rbErr := json.Marshal(data)
+	if rbErr != nil {
+		logrus.Errorf("failed to marshal request body for request %s: %v", request.ID, rbErr)
+		return rbErr
 	}
 	request.Body = string(body)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, request.Endpoint, strings.NewReader(request.Body))
-	if err != nil {
-		logrus.Errorf("failed to create request for request %s: %v", request.ID, err)
-		return err
+	req, crErr := http.NewRequestWithContext(ctx, http.MethodPost, request.Endpoint, strings.NewReader(request.Body))
+	if crErr != nil {
+		logrus.Errorf("failed to create request for request %s: %v", request.ID, crErr)
+		return crErr
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		logrus.Errorf("failed to send request for request %s: %v", request.ID, err)
-		return err
+	resp, hErr := r.httpClient.Do(req)
+	if hErr != nil {
+		logrus.Errorf("failed to send request for request %s: %v", request.ID, hErr)
+		return hErr
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
+		logrus.Errorf("request for request %s returned status %d", request.ID, resp.StatusCode)
+		return fmt.Errorf("request for request %s returned status %d", request.ID, resp.StatusCode)
+	}
 
 	request.CreatedAt = time.Now().Unix()
 	if uErr := r.requestorStore.UpdateRequest(ctx, request); uErr != nil {
@@ -144,9 +156,14 @@ func (r *Requestor) CreateRequest(
 	}
 	// FIXME: refactor to handle different status codes and retry logic
 
-	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
-		logrus.Errorf("request for request %s returned status %d", request.ID, resp.StatusCode)
-		return err
+	if request.Parallelization != 0 {
+		session.UpdateNextRequests(request.ID)
+		if usErr := r.sessionStore.UpdateSession(ctx, session.GetID(), session); usErr != nil {
+			logrus.Errorf("failed to update session %s with next request %s: %v", session.GetID(), request.ID, usErr)
+			return usErr
+		}
+
+		return nil
 	}
 
 	logrus.Debugf("request for request %s sent successfully", request.ID)
@@ -189,13 +206,11 @@ func (r *Requestor) CleanRequestQueue(ctx context.Context, session session.Sessi
 // session: The current game session containing player connection information.
 // urls: A slice of URLs to which the requests will be sent.
 // requestBuilder: A function that builds a callback request based on the URL and session.
-// createRequestFunction: A function that creates a new request.
 func (r *Requestor) Send(
 	ctx context.Context,
 	session session.Session,
 	urls []string,
 	requestBuilder RequestBuilderFunc,
-	createRequestFunction func(context.Context, session.Session, *callbackModel.Request, callbackModel.RequestData) error,
 ) error {
 	// FIXME: implement polling mechanism to check if the request is completed and retry
 
@@ -210,7 +225,7 @@ func (r *Requestor) Send(
 			request, data := requestBuilder(url)
 			request.Endpoint = fmt.Sprintf("%s/%s", url, strings.ToLower(request.Action))
 
-			rErr := createRequestFunction(ctx, session, request, data)
+			rErr := r.CreateRequest(ctx, session, request, data)
 			if rErr != nil {
 				errCh <- fmt.Errorf("failed to create request for player at %s: %w", u, rErr)
 			}
