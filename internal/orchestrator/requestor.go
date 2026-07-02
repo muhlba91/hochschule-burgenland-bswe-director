@@ -136,7 +136,6 @@ func (r *Requestor) CreateRequest(
 	request *callback.Request,
 	data callback.RequestData,
 ) error {
-	// FIXME: check session reloading especially when parallelization is used, as the session might be updated by other requests in the meantime
 	if r.CheckParallelizationRestriction(ctx, session, request) {
 		slog.WarnContext(ctx, "parallelization restriction violated",
 			slog.String(logging.FieldSessionID, session.GetID()),
@@ -379,7 +378,6 @@ func (r *Requestor) superviseRequest(ctx context.Context, session session.Sessio
 			slog.String(logging.FieldRequestID, request.ID),
 			slog.Any(logging.FieldError, lErr),
 		)
-		// FIXME: what to do if we cannot lock the session? We cannot update the request status or broadcast an error message. Maybe we should panic here, as this is a critical error.
 		return
 	}
 	defer unlock(ctx)
