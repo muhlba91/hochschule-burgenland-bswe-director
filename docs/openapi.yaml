@@ -1,0 +1,143 @@
+---
+openapi: 3.0.0
+info:
+  title: Flow Director API
+  version: 1.0.0
+  description: Generic high-concurrency state-machine flow orchestrator.
+paths:
+  /ws:
+    get:
+      summary: Establish WebSocket Connection
+      description: Establishes a persistent real-time connection with clients for session updates and broadcasts.
+      responses:
+        "101":
+          description: Switching protocols to WebSocket.
+  /callback/{requestId}:
+    post:
+      summary: Deliver Asynchronous Agent Callback
+      description: Receives asynchronous gameplay decision updates from registered player/agent microservices.
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          description: The unique transaction identifier corresponding to the pending callback request.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: The payload containing the outcome of the agent's operation.
+      responses:
+        "200":
+          description: Callback processed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallbackResponse"
+        "400":
+          description: Invalid payload or request parameters.
+        "409":
+          description: Callback not expected for this session.
+        "410":
+          description: Request not found or expired.
+        "500":
+          description: Internal processing or session locking error.
+  /livez:
+    get:
+      summary: Liveness Probe
+      description: Verifies that the Flow Director server is alive and running.
+      responses:
+        "200":
+          description: Server is operational.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivenessResponse"
+  /healthz:
+    get:
+      summary: Readiness Probe
+      description: Tests backend connectivity to Redis stores.
+      responses:
+        "200":
+          description: Redis connection is fully healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComponentHealthResponse"
+        "503":
+          description: One or more Redis stores are down.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComponentHealthResponse"
+  /startupz:
+    get:
+      summary: Startup Probe
+      description: Confirms the server has completed its initialization sequence.
+      responses:
+        "200":
+          description: Server started successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComponentHealthResponse"
+        "503":
+          description: One or more Redis stores failed during startup diagnostics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComponentHealthResponse"
+
+components:
+  schemas:
+    CallbackResponse:
+      type: object
+      required:
+        - type
+        - message
+      properties:
+        type:
+          type: string
+          enum: [success, error]
+          description: The status flag of the callback handling.
+        message:
+          type: object
+          description: Detailed response details or error string description.
+
+    LivenessResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [up]
+          description: The liveness status of the server.
+
+    ComponentHealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: object
+          required:
+            - sessionStore
+            - requestStore
+            - broadcastStore
+          properties:
+            sessionStore:
+              type: string
+              enum: [up, down]
+              description: Health status of the Redis session metadata store.
+            requestStore:
+              type: string
+              enum: [up, down]
+              description: Health status of the Redis callback request store.
+            broadcastStore:
+              type: string
+              enum: [up, down]
+              description: Health status of the Redis Pub/Sub broadcast store.
