@@ -47,7 +47,7 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 		ctx := c.Request().Context()
 
 		defer func() {
-			handleDisconnect(ctx, dispatcher, conn, connData)
+			handleDisconnect(context.WithoutCancel(ctx), dispatcher, conn, connData)
 		}()
 
 		readDone := make(chan struct{})

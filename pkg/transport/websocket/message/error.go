@@ -12,4 +12,7 @@ var (
 	ErrSessionNotJoined      = errors.New("session not joined")
 	ErrSessionDisconnected   = errors.New("session disconnected")
 	ErrSessionFull           = errors.New("session full")
+	ErrSessionNotStarted     = errors.New("session could not be started")
+	ErrSessionLocked         = errors.New("session is locked")
+	ErrSessionStateNotFound  = errors.New("session state not found")
 )

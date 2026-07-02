@@ -130,7 +130,7 @@ func (gp *Gameplay) Join(
 				SessionID: *sid,
 			})
 
-			gp.StartStop(ctx, session, connectionData)
+			go gp.StartStop(context.WithoutCancel(ctx), session, connectionData)
 		}
 	}
 

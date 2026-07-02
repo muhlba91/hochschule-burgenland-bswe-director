@@ -66,7 +66,7 @@ func (c *Cache) LockWithOptions(
 		logrus.WithFields(logrus.Fields{
 			logging.FieldLockKey: lockKey,
 		}).Debug("releasing lock")
-		_, err := mutex.UnlockContext(uCtx)
+		_, err := mutex.UnlockContext(context.WithoutCancel(uCtx))
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				logging.FieldLockKey: lockKey,

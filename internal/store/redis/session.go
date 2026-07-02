@@ -4,16 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 
-	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
-	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback/response"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport"
 )
 
 // maxBatchSize defines the maximum number of session keys to retrieve in a single batch when listing sessions.
@@ -118,7 +116,7 @@ func (c *Cache) GetBaseSession(ctx context.Context, sessionID string) (session.S
 	sess, sErr := c.GetSession(ctx, sessionID)
 	if sErr != nil || sess == nil {
 		logrus.Debugf("session not found: %s", sessionID)
-		return nil, echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingSession))
+		return nil, transport.ErrNoMatchingSession
 	}
 
 	var session session.Base
@@ -128,7 +126,7 @@ func (c *Cache) GetBaseSession(ctx context.Context, sessionID string) (session.S
 			logging.FieldSessionID: sessionID,
 			logging.FieldError:     usErr,
 		}).Error("failed to unmarshal session")
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, response.NewError(response.ErrNoMatchingSession))
+		return nil, transport.ErrNoMatchingSession
 	}
 
 	return &session, nil

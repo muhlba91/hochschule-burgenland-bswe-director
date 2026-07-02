@@ -3,8 +3,10 @@ package pokemon
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
@@ -14,7 +16,9 @@ import (
 	pkgPokemonSession "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/session"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/state"
 	pkgSession "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback/response"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/connection"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/message"
 )
@@ -71,13 +75,13 @@ func (gp *Gameplay) StartStop(
 		logrus.WithFields(logrus.Fields{logging.FieldSessionID: session.GetID()}).Debug("session is not started yet")
 	case event.TypeStarted:
 		logrus.WithFields(logrus.Fields{logging.FieldSessionID: session.GetID()}).Debug("session is started")
-		gp.Start(ctx, session)
+		go gp.Start(context.WithoutCancel(ctx), session)
 	case event.TypePaused:
 		logrus.WithFields(logrus.Fields{logging.FieldSessionID: session.GetID()}).Debug("session is paused")
 		_ = gp.requestor.CleanRequestQueue(ctx, session)
 	case event.TypeResumed:
 		logrus.WithFields(logrus.Fields{logging.FieldSessionID: session.GetID()}).Debug("session is resumed")
-		_ = gp.NextTurn(ctx, session)
+		go gp.NextTurn(context.WithoutCancel(ctx), session)
 	case event.TypeFinished:
 		logrus.WithFields(logrus.Fields{logging.FieldSessionID: session.GetID()}).Debug("session is already finished")
 		_ = gp.broadcastWinner(ctx, session)
@@ -104,6 +108,8 @@ func (gp *Gameplay) Start(ctx context.Context, session *pkgPokemonSession.Sessio
 			logging.FieldSessionID: session.GetID(),
 			logging.FieldError:     uErr,
 		}).Error("failed to update session with start time")
+		gp.reportBackgroundError(ctx, session.GetID(), message.ErrSessionNotStarted)
+		return
 	}
 
 	state := &state.State{
@@ -115,6 +121,8 @@ func (gp *Gameplay) Start(ctx context.Context, session *pkgPokemonSession.Sessio
 			logging.FieldSessionID: session.GetID(),
 			logging.FieldError:     sErr,
 		}).Error("failed to create state")
+		gp.reportBackgroundError(ctx, session.GetID(), message.ErrSessionNotStarted)
+		return
 	}
 
 	requestBuilder := func(url string) (*callback.Request, callback.RequestData) {
@@ -150,6 +158,12 @@ func (gp *Gameplay) StartCallback(
 	session pkgSession.Session,
 	request *callback.Request,
 ) error {
+	unlock, err := gp.store.LockSession(ctx, request.SessionID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusLocked, response.NewError(transport.ErrSessionLocked))
+	}
+	defer unlock(ctx)
+
 	state, sErr := gp.updateState(ctx, session.GetID(), request.InternalID, data.State)
 	if sErr != nil {
 		return sErr
@@ -165,7 +179,7 @@ func (gp *Gameplay) StartCallback(
 			return psErr
 		}
 		_ = gp.store.BroadcastGlobalState(ctx, gp.store.ToGlobalState(state, pokemonSession))
-		return gp.NextTurn(ctx, session)
+		go gp.NextTurn(context.WithoutCancel(ctx), session)
 	}
 
 	return nil
@@ -229,7 +243,8 @@ func (gp *Gameplay) analyzeState(ctx context.Context, session pkgSession.Session
 		return gp.broadcastWinner(ctx, pokemonSession)
 	}
 
-	return gp.NextTurn(ctx, session)
+	go gp.NextTurn(context.WithoutCancel(ctx), session)
+	return nil
 }
 
 // broadcastWinner broadcasts the winner of the game session to all connected clients.

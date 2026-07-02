@@ -251,6 +251,18 @@ func (r *Requestor) Send(
 			request, data := requestBuilder(u)
 			request.Endpoint = fmt.Sprintf("%s/%s", u, strings.ToLower(request.Action))
 
+			unlock, lErr := r.sessionStore.LockSession(bgCtx, session.GetID())
+			if lErr != nil {
+				logrus.WithFields(logrus.Fields{
+					logging.FieldSessionID: session.GetID(),
+					logging.FieldRequestID: request.ID,
+					logging.FieldError:     lErr,
+				}).Error("failed to lock session")
+				// FIXME: what to do if we cannot lock the session? We cannot update the request status or broadcast an error message. Maybe we should panic here, as this is a critical error.
+				return
+			}
+			defer unlock(bgCtx)
+
 			rErr := r.CreateRequest(bgCtx, session, request, data)
 			if rErr != nil {
 				logrus.WithFields(logrus.Fields{
@@ -349,6 +361,7 @@ func (r *Requestor) superviseRequest(ctx context.Context, session session.Sessio
 			logging.FieldRequestID: request.ID,
 			logging.FieldError:     lErr,
 		}).Error("failed to lock session")
+		// FIXME: what to do if we cannot lock the session? We cannot update the request status or broadcast an error message. Maybe we should panic here, as this is a critical error.
 		return
 	}
 	defer unlock(ctx)

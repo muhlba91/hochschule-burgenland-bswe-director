@@ -71,7 +71,7 @@ func (gp *Gameplay) Disconnect(
 			msgEvent = globalEvent.GenerateEventName(constants.Name, globalEvent.Disconnected)
 			payload, _ = json.Marshal(connectionData)
 
-			gp.StartStop(ctx, session, connectionData)
+			go gp.StartStop(context.WithoutCancel(ctx), session, connectionData)
 		}
 	}
 

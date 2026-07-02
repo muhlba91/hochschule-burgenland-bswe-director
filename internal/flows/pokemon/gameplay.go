@@ -1,6 +1,8 @@
 package pokemon
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
@@ -10,6 +12,7 @@ import (
 	globalStore "github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/action"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/message"
 )
 
 // Gameplay represents a gameplay type.
@@ -64,4 +67,16 @@ func (gp *Gameplay) generateActionName(action action.Type) string {
 // name: The name to be combined with the gameplay name.
 func generateName(name string) string {
 	return fmt.Sprintf("%s:%s", constants.Name, name)
+}
+
+// reportBackgroundError broadcasts a user-friendly error to all connected clients.
+// ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
+// sessionID: The ID of the session where the error occurred.
+// clientErr: The safe, user-friendly error to send to clients.
+func (gp *Gameplay) reportBackgroundError(ctx context.Context, sessionID string, clientErr error) {
+	payload, _ := json.Marshal(clientErr.Error())
+	_ = gp.store.Broadcast(ctx, sessionID, &message.Message{
+		Event:   message.ErrorEvent,
+		Payload: payload,
+	})
 }

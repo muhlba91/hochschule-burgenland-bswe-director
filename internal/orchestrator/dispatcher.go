@@ -14,6 +14,7 @@ import (
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback/response"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/connection"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/message"
@@ -45,8 +46,6 @@ func NewDispatcher(
 		registry:       registry,
 	}
 }
-
-// FIXME: check session locking within all handlers
 
 // Handle processes incoming WebSocket messages and dispatches them to the appropriate handlers based on the message type.
 // ctx: The context for managing request lifecycle.
@@ -93,22 +92,13 @@ func (d *Dispatcher) HandleCallback(
 		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingRequest))
 	}
 
-	// FIXME: shouldn't we move this inside the handlers?
-	if request.Parallelization != 0 {
-		unlock, err := d.sessionStore.LockSession(ctx, request.SessionID)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusLocked, response.NewError(response.ErrSessionLocked))
-		}
-		defer unlock(ctx)
-	}
-
 	session, sErr := d.sessionStore.GetBaseSession(ctx, request.SessionID)
 	if sErr != nil {
 		logrus.WithFields(logrus.Fields{
 			logging.FieldSessionID: request.SessionID,
 			logging.FieldError:     sErr,
 		}).Info("session not found")
-		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingSession))
+		return echo.NewHTTPError(http.StatusGone, response.NewError(transport.ErrNoMatchingSession))
 	}
 
 	if request.Parallelization != 0 && !session.IsRequestExpected(requestID) {
@@ -129,14 +119,20 @@ func (d *Dispatcher) HandleCallback(
 		return echo.NewHTTPError(http.StatusInternalServerError, response.NewError(cErr))
 	}
 
-	// reload session in case it was updated during callback handling
+	// lock and reload session in case it was updated during callback handling
+	unlock, err := d.sessionStore.LockSession(ctx, request.SessionID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusLocked, response.NewError(transport.ErrSessionLocked))
+	}
+	defer unlock(ctx)
+
 	session, sErr = d.sessionStore.GetBaseSession(ctx, request.SessionID)
 	if sErr != nil {
 		logrus.WithFields(logrus.Fields{
 			logging.FieldSessionID: request.SessionID,
 			logging.FieldError:     sErr,
 		}).Info("session not found during reload")
-		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingSession))
+		return echo.NewHTTPError(http.StatusGone, response.NewError(transport.ErrNoMatchingSession))
 	}
 
 	uErr := d.requestStore.CompleteRequest(ctx, session, request)

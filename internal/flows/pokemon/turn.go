@@ -4,20 +4,36 @@ import (
 	"context"
 	"crypto/rand"
 	"math/big"
+	"net/http"
 
+	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/action"
 	pkgSession "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback/response"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/message"
 )
 
 // NextTurn initiates the next turn for a given session.
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // session: The current game session containing player connection information.
-func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) error {
+func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) {
+	unlock, lErr := gp.store.LockSession(ctx, session.GetID())
+	if lErr != nil {
+		logrus.WithFields(logrus.Fields{
+			logging.FieldSessionID: session.GetID(),
+			logging.FieldError:     lErr,
+		}).Error("failed to lock session")
+		gp.reportBackgroundError(ctx, session.GetID(), message.ErrSessionLocked)
+		return
+	}
+	defer unlock(ctx)
+
 	logrus.WithFields(logrus.Fields{
 		logging.FieldSessionID: session.GetID(),
 	}).Info("starting next turn")
@@ -28,7 +44,8 @@ func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) er
 			logging.FieldSessionID: session.GetID(),
 			logging.FieldError:     psErr,
 		}).Error("failed to get session")
-		return psErr
+		gp.reportBackgroundError(ctx, session.GetID(), message.ErrSessionNotFound)
+		return
 	}
 
 	state, sErr := gp.store.GetState(ctx, session.GetID())
@@ -37,7 +54,8 @@ func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) er
 			logging.FieldSessionID: session.GetID(),
 			logging.FieldError:     sErr,
 		}).Error("failed to get state")
-		return sErr
+		gp.reportBackgroundError(ctx, session.GetID(), message.ErrSessionStateNotFound)
+		return
 	}
 
 	if pokemonSession.NextTurn == nil {
@@ -71,8 +89,7 @@ func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) er
 		return request, data
 	}
 
-	gp.requestor.Send(ctx, pokemonSession, []string{player.URL}, requestBuilder)
-	return nil
+	go gp.requestor.Send(context.WithoutCancel(ctx), pokemonSession, []string{player.URL}, requestBuilder)
 }
 
 // TurnCallback handles the callback for the turn action.
@@ -86,6 +103,12 @@ func (gp *Gameplay) TurnCallback(
 	session pkgSession.Session,
 	request *callback.Request,
 ) error {
+	unlock, err := gp.store.LockSession(ctx, request.SessionID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusLocked, response.NewError(transport.ErrSessionLocked))
+	}
+	defer unlock(ctx)
+
 	state, sErr := gp.updateState(ctx, session.GetID(), request.InternalID, data.State)
 	if sErr != nil {
 		return sErr
@@ -128,9 +151,10 @@ func (gp *Gameplay) TurnCallback(
 			return attack, data
 		}
 
-		gp.requestor.Send(ctx, pokemonSession, []string{opponent.URL}, requestBuilder)
+		go gp.requestor.Send(context.WithoutCancel(ctx), pokemonSession, []string{opponent.URL}, requestBuilder)
 		return nil
 	}
+
 	_ = gp.store.BroadcastGlobalState(ctx, gp.store.ToGlobalState(state, pokemonSession))
 	return gp.analyzeState(ctx, session, state)
 }
@@ -146,6 +170,12 @@ func (gp *Gameplay) AttackCallback(
 	session pkgSession.Session,
 	request *callback.Request,
 ) error {
+	unlock, err := gp.store.LockSession(ctx, request.SessionID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusLocked, response.NewError(transport.ErrSessionLocked))
+	}
+	defer unlock(ctx)
+
 	state, sErr := gp.updateState(ctx, session.GetID(), request.InternalID, data.State)
 	if sErr != nil {
 		return sErr
