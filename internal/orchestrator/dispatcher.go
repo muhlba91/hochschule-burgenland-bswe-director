@@ -46,6 +46,8 @@ func NewDispatcher(
 	}
 }
 
+// FIXME: check session locking within all handlers
+
 // Handle processes incoming WebSocket messages and dispatches them to the appropriate handlers based on the message type.
 // ctx: The context for managing request lifecycle.
 // conn: The WebSocket connection through which the message was received.
@@ -91,6 +93,7 @@ func (d *Dispatcher) HandleCallback(
 		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingRequest))
 	}
 
+	// FIXME: shouldn't we move this inside the handlers?
 	if request.Parallelization != 0 {
 		unlock, err := d.sessionStore.LockSession(ctx, request.SessionID)
 		if err != nil {

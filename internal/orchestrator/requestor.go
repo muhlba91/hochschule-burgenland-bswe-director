@@ -136,6 +136,7 @@ func (r *Requestor) CreateRequest(
 	request *callback.Request,
 	data callback.RequestData,
 ) error {
+	// FIXME: check session reloading especially when parallelization is used, as the session might be updated by other requests in the meantime
 	if r.CheckParallelizationRestriction(ctx, session, request) {
 		logrus.WithFields(logrus.Fields{
 			logging.FieldSessionID: session.GetID(),

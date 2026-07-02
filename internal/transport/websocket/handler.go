@@ -77,6 +77,7 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 
 		var broadcastSub store.Subscription
 		var broadcastCh <-chan string
+		sessionUpdateCh := make(chan *string)
 
 		defer func() {
 			if broadcastSub != nil {
@@ -94,21 +95,29 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 					logging.FieldSessionID: connData.SessionID,
 					logging.FieldEvent:     msg.Event,
 				}).Debug("received websocket message")
-				sid := dispatcher.Handle(ctx, conn, connData, msg)
+				go func(m message.Message) {
+					sid := dispatcher.Handle(ctx, conn, connData, m)
+					if sid != nil {
+						sessionUpdateCh <- sid
+					}
+				}(msg)
 
-				if sid != nil && connData.SessionID != nil && *sid != *connData.SessionID {
+			case sid := <-sessionUpdateCh:
+				if connData.SessionID != nil && *sid != *connData.SessionID {
 					logrus.WithFields(logrus.Fields{
 						"new_session_id":          *sid,
 						"old_session_id":          *connData.SessionID,
 						logging.FieldConnectionID: connData.ConnectionID,
 					}).Debug("connection requested a new session, but already subscribed to a session")
 					handleDisconnect(ctx, dispatcher, conn, connData)
-					_ = broadcastSub.Close()
+					if broadcastSub != nil {
+						_ = broadcastSub.Close()
+					}
 					connData.SessionID = nil
 					broadcastSub = nil
 					broadcastCh = nil
 				}
-				if sid != nil && (connData.SessionID == nil || *sid != *connData.SessionID) {
+				if connData.SessionID == nil || *sid != *connData.SessionID {
 					logrus.WithFields(logrus.Fields{
 						logging.FieldSessionID:    *sid,
 						logging.FieldConnectionID: connData.ConnectionID,

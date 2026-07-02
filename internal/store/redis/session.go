@@ -16,6 +16,9 @@ import (
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback/response"
 )
 
+// maxBatchSize defines the maximum number of session keys to retrieve in a single batch when listing sessions.
+const maxBatchSize = 100
+
 // CreateSession creates a new session in the cache with the given session ID and data.
 // ctx: The context for the operation.
 // sessionID: The unique session ID for the new session.
@@ -46,23 +49,54 @@ func (c *Cache) UpdateSession(ctx context.Context, sessionID string, data any) e
 // flowName: The name of the flow for which to list session IDs.
 func (c *Cache) ListSessions(ctx context.Context, flowName string) map[string]string {
 	sessions := make(map[string]string)
-
 	pattern := fmt.Sprintf("%s:*", session.GetSessionPrefix(flowName))
-	keys, kErr := c.client.Keys(ctx, pattern).Result()
-	if kErr != nil {
+
+	var keys []string
+	var cursor uint64
+
+	for {
+		var batch []string
+		var err error
+		batch, cursor, err = c.client.Scan(ctx, cursor, pattern, maxBatchSize).Result()
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				logging.FieldFlowName: flowName,
+				logging.FieldError:    err,
+			}).Error("failed to scan session keys")
+			return sessions
+		}
+
+		keys = append(keys, batch...)
+		if cursor == 0 {
+			break
+		}
+	}
+
+	if len(keys) == 0 {
 		return sessions
 	}
 
-	for _, key := range keys {
-		val, gEerr := c.Get(ctx, key)
-		if gEerr != nil || val == nil {
+	const batchSize = maxBatchSize
+	for i := 0; i < len(keys); i += batchSize {
+		end := min(i+batchSize, len(keys))
+
+		batchKeys := keys[i:end]
+		vals, err := c.client.MGet(ctx, batchKeys...).Result()
+		if err != nil {
 			logrus.WithFields(logrus.Fields{
-				logging.FieldKey:   key,
-				logging.FieldError: gEerr,
-			}).Error("failed to get session data")
+				logging.FieldFlowName: flowName,
+				logging.FieldError:    err,
+			}).Error("failed to retrieve session data")
 			continue
 		}
-		sessions[key] = *val
+
+		for j, key := range batchKeys {
+			if vals[j] != nil {
+				if val, ok := vals[j].(string); ok {
+					sessions[key] = val
+				}
+			}
+		}
 	}
 
 	logrus.Debugf("retrieved sessions for flow %s: %v", flowName, sessions)

@@ -57,7 +57,7 @@ func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) er
 				RequestDataBase: callback.RequestDataBase{
 					SessionID: session.GetID(),
 				},
-				State: state,
+				State: gp.store.ToCurrentStateForPlayer(state, pokemonSession, *pokemonSession.NextTurn),
 			},
 		}
 
@@ -131,7 +131,7 @@ func (gp *Gameplay) TurnCallback(
 		gp.requestor.Send(ctx, pokemonSession, []string{opponent.URL}, requestBuilder)
 		return nil
 	}
-	_ = gp.store.BroadcastState(ctx, state)
+	_ = gp.store.BroadcastGlobalState(ctx, gp.store.ToGlobalState(state, pokemonSession))
 	return gp.analyzeState(ctx, session, state)
 }
 

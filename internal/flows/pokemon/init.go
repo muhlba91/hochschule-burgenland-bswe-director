@@ -25,6 +25,8 @@ func (gp *Gameplay) Init(reg *orchestrator.Registry) {
 		globalEvent.GenerateEventName(constants.Name, globalEvent.ConnectionInformation),
 		gp.ConnectionInformation,
 	)
+	orchestrator.RegisterEventHandler(reg, gp.generateEventName(event.TypeState), gp.State)
+	orchestrator.RegisterEventHandler(reg, gp.generateEventName(event.TypePlayerInformation), gp.PlayerInformation)
 
 	orchestrator.RegisterCallbackHandler(reg, gp.generateActionName(action.TypeStart), gp.StartCallback)
 	orchestrator.RegisterCallbackHandler(reg, gp.generateActionName(action.TypeTurn), gp.TurnCallback)

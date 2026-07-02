@@ -15,4 +15,5 @@ const (
 	FieldLockKey      = "lock_key"
 	FieldAttempt      = "attempt"
 	FieldEndpoint     = "endpoint"
+	FieldFlowName     = "flow_name"
 )

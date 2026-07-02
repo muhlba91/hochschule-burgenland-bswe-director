@@ -10,7 +10,7 @@ type RequestBase struct {
 	callback.RequestDataBase
 
 	// State is the current state of the player in the game.
-	State *state.State `json:"state,omitempty"`
+	State *state.CurrentState `json:"state,omitempty"`
 }
 
 // ResponseBaseWithState represents the base structure for Pokémon game responses that include the player's state, containing common fields shared by different response types.

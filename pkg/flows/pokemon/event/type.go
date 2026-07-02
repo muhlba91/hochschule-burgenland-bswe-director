@@ -5,13 +5,17 @@ type Type string
 
 //nolint:gochecknoglobals // Define the event types for the Pokémon gameplay.
 var (
-	TypeCreate Type = "create"
-	TypeList   Type = "list"
-	TypeJoin   Type = "join"
+	TypeCreate            Type = "create"
+	TypeList              Type = "list"
+	TypeJoin              Type = "join"
+	TypeState             Type = "state"
+	TypePlayerInformation Type = "player_information"
 
-	TypeCreated Type = "created"
-	TypeListing Type = "listing"
-	TypeJoined  Type = "joined"
+	TypeCreated       Type = "created"
+	TypeListing       Type = "listing"
+	TypeJoined        Type = "joined"
+	TypeCurrentState  Type = "current_state"
+	TypePlayerDetails Type = "player_details"
 
 	TypeNotStarted Type = "not_started"
 	TypeStarted    Type = "started"

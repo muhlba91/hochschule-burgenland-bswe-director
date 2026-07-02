@@ -159,7 +159,12 @@ func (gp *Gameplay) StartCallback(
 		logrus.WithFields(logrus.Fields{
 			logging.FieldSessionID: session.GetID(),
 		}).Debug("all start callbacks received, initiating next turn")
-		_ = gp.store.BroadcastState(ctx, state)
+
+		pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
+		if psErr != nil || pokemonSession == nil {
+			return psErr
+		}
+		_ = gp.store.BroadcastGlobalState(ctx, gp.store.ToGlobalState(state, pokemonSession))
 		return gp.NextTurn(ctx, session)
 	}
 

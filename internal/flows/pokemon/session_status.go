@@ -8,6 +8,7 @@ import (
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/connection"
 	globalEvent "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/event"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/websocket/message"
@@ -102,6 +103,39 @@ func (gp *Gameplay) ConnectionInformation(
 		logging.FieldEvent:   msgEvent,
 		logging.FieldPayload: string(payload),
 	}).Debug("connection information response")
+
+	return &message.Message{
+		Event:   msgEvent,
+		Payload: payload,
+	}
+}
+
+// State provides the current state of an existing Pokémon game session.
+// ctx: The context for managing request lifecycle.
+// _: The event.State struct (not used in this function).
+// connectionData: The connection data for the websocket connection.
+func (gp *Gameplay) State(
+	ctx context.Context,
+	_ *event.State,
+	connectionData *connection.Data,
+) *message.Message {
+	state, err := gp.store.GetCurrentStateForPlayerAndSession(
+		ctx,
+		*connectionData.InternalID,
+		*connectionData.SessionID,
+	)
+	if err != nil {
+		payload, _ := json.Marshal(message.ErrSessionNotFound.Error())
+		return &message.Message{Event: message.ErrorEvent, Payload: payload}
+	}
+
+	msgEvent := gp.generateEventName(event.TypeCurrentState)
+	payload, _ := json.Marshal(state)
+
+	logrus.WithFields(logrus.Fields{
+		logging.FieldEvent:   msgEvent,
+		logging.FieldPayload: string(payload),
+	}).Debug("current state response")
 
 	return &message.Message{
 		Event:   msgEvent,
