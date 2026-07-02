@@ -47,7 +47,7 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 		ctx := c.Request().Context()
 
 		defer func() {
-			handleDisconnect(context.WithoutCancel(ctx), dispatcher, conn, connData)
+			handleDisconnect(context.WithoutCancel(ctx), dispatcher, connData)
 		}()
 
 		readDone := make(chan struct{})
@@ -78,6 +78,7 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 		var broadcastSub store.Subscription
 		var broadcastCh <-chan string
 		sessionUpdateCh := make(chan *string)
+		writeCh := make(chan *message.Message)
 
 		defer func() {
 			if broadcastSub != nil {
@@ -96,7 +97,11 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 					logging.FieldEvent:     msg.Event,
 				}).Debug("received websocket message")
 				go func(m message.Message) {
-					sid := dispatcher.Handle(ctx, conn, connData, m)
+					sid, rMsg := dispatcher.Handle(ctx, connData, m)
+					if rMsg != nil {
+						writeCh2 := writeCh
+						writeCh2 <- rMsg
+					}
 					if sid != nil {
 						sessionUpdateCh <- sid
 					}
@@ -109,7 +114,7 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 						"old_session_id":          *connData.SessionID,
 						logging.FieldConnectionID: connData.ConnectionID,
 					}).Debug("connection requested a new session, but already subscribed to a session")
-					handleDisconnect(ctx, dispatcher, conn, connData)
+					handleDisconnect(ctx, dispatcher, connData)
 					if broadcastSub != nil {
 						_ = broadcastSub.Close()
 					}
@@ -133,6 +138,18 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 					}
 					broadcastSub = sub
 					broadcastCh = broadcastSub.Channel()
+				}
+
+			case rMsg := <-writeCh:
+				logrus.WithFields(logrus.Fields{
+					logging.FieldSessionID: connData.SessionID,
+				}).Debug("received response message to write")
+				if errWrite := wsjson.Write(ctx, conn, rMsg); errWrite != nil {
+					logrus.WithFields(logrus.Fields{
+						logging.FieldSessionID: connData.SessionID,
+						logging.FieldError:     errWrite,
+					}).Error("websocket write failed for response message")
+					continue
 				}
 
 			case msgPayload := <-broadcastCh:
@@ -173,12 +190,10 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 // handleDisconnect handles the disconnection of a websocket connection.
 // ctx: The context for managing request lifecycle.
 // dispatcher: The dispatcher for handling management and flow actions.
-// conn: The websocket connection that is being disconnected.
 // connectionData: The connection data associated with the websocket connection.
 func handleDisconnect(
 	ctx context.Context,
 	dispatcher *orchestrator.Dispatcher,
-	conn *websocket.Conn,
 	connectionData *connection.Data,
 ) {
 	if connectionData.SessionID != nil {
@@ -188,7 +203,7 @@ func handleDisconnect(
 		}).Info("handling disconnect for session and connection")
 
 		payload, _ := json.Marshal(connectionData)
-		dispatcher.Handle(ctx, conn, connectionData, message.Message{
+		_, _ = dispatcher.Handle(ctx, connectionData, message.Message{
 			Event:   event.GenerateEventName(connectionData.GetFlowName(), event.Disconnected),
 			Payload: payload,
 		})

@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 
@@ -49,20 +47,14 @@ func NewDispatcher(
 
 // Handle processes incoming WebSocket messages and dispatches them to the appropriate handlers based on the message type.
 // ctx: The context for managing request lifecycle.
-// conn: The WebSocket connection through which the message was received.
 // connData: The connection data associated with the WebSocket connection.
 // msg: The incoming message to be processed.
 func (d *Dispatcher) Handle(
 	ctx context.Context,
-	conn *websocket.Conn,
 	connData *connection.Data,
 	msg message.Message,
-) *string {
-	sid, rMsg := d.registry.HandleEvent(ctx, msg.Event, connData, msg.Payload)
-	if rMsg != nil {
-		_ = wsjson.Write(ctx, conn, rMsg)
-	}
-	return sid
+) (*string, *message.Message) {
+	return d.registry.HandleEvent(ctx, msg.Event, connData, msg.Payload)
 }
 
 // Subscribe subscribes to the Redis pub/sub channel for the given session ID.
