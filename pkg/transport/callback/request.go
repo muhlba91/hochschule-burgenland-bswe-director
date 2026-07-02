@@ -15,6 +15,8 @@ type Request struct {
 	InternalID string `json:"internal_id" redis:"internal_id"`
 	// Endpoint is the endpoint to which the request is directed.
 	Endpoint string `json:"endpoint" redis:"endpoint"`
+	// Secret is a secret generated for the request to verify callback authenticity.
+	Secret string `json:"secret" redis:"secret"`
 	// Body contains the body of the request.
 	Body string `json:"data" redis:"data"`
 	// Action is the action associated with the request.

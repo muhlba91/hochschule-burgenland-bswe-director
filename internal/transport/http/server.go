@@ -38,7 +38,7 @@ func NewServer(
 		Dispatcher: dispatcher,
 	}
 
-	configureServer(s)
+	configureServer(s, configuration)
 	configureRoutes(s)
 
 	return s

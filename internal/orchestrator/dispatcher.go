@@ -2,6 +2,9 @@ package orchestrator
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -9,6 +12,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
@@ -24,6 +28,7 @@ type Dispatcher struct {
 	requestStore   store.RequestStore
 	broadcastStore store.BroadcastStore
 	registry       *Registry
+	configuration  *configuration.Data
 }
 
 // NewDispatcher creates a new Dispatcher instance.
@@ -36,12 +41,14 @@ func NewDispatcher(
 	requestStore store.RequestStore,
 	broadcastStore store.BroadcastStore,
 	registry *Registry,
+	configuration *configuration.Data,
 ) *Dispatcher {
 	return &Dispatcher{
 		sessionStore:   sessionStore,
 		requestStore:   requestStore,
 		broadcastStore: broadcastStore,
 		registry:       registry,
+		configuration:  configuration,
 	}
 }
 
@@ -99,6 +106,27 @@ func (d *Dispatcher) HandleCallback(
 			slog.String(logging.FieldSessionID, request.SessionID),
 		)
 		return echo.NewHTTPError(http.StatusConflict, response.NewError(response.ErrCallbackNotExpected))
+	}
+
+	if d.configuration.CallbackAuthEnabled && request.Secret != "" {
+		sigHeader := echoCtx.Request().Header.Get("X-Signature")
+		if sigHeader == "" {
+			slog.InfoContext(ctx, "missing callback signature",
+				slog.String(logging.FieldRequestID, requestID),
+			)
+			return echo.NewHTTPError(http.StatusUnauthorized, response.NewError(response.ErrCallbackNotAuthorized))
+		}
+
+		mac := hmac.New(sha256.New, []byte(request.Secret))
+		_, _ = mac.Write(body)
+		expected := hex.EncodeToString(mac.Sum(nil))
+
+		if !hmac.Equal([]byte(expected), []byte(sigHeader)) {
+			slog.InfoContext(ctx, "invalid callback signature",
+				slog.String(logging.FieldRequestID, requestID),
+			)
+			return echo.NewHTTPError(http.StatusUnauthorized, response.NewError(response.ErrCallbackNotAuthorized))
+		}
 	}
 
 	cErr := d.registry.HandleCallback(ctx, session, request, body)

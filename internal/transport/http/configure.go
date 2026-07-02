@@ -6,7 +6,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/transport/callback"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/transport/websocket"
 )
@@ -22,11 +24,19 @@ func configureRoutes(
 
 // configureServer configures the echo server with middleware and settings.
 // http: The echo server to configure.
-func configureServer(http *Server) {
+// configuration: The configuration data for the server.
+func configureServer(http *Server, configuration *configuration.Data) {
 	http.Server.HideBanner = true
 	http.Server.HidePort = true
 
 	http.Server.Use(middleware.Recover())
+	http.Server.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStoreWithConfig(
+		middleware.RateLimiterMemoryStoreConfig{
+			Rate:      rate.Limit(configuration.RateLimit),
+			Burst:     configuration.BurstLimit,
+			ExpiresIn: configuration.RateLimitWindow,
+		},
+	)))
 
 	http.Server.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogStatus: true,

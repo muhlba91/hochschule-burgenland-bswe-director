@@ -37,7 +37,7 @@ func main() {
 	c := redis.NewCache(&cfg)
 	req := orchestrator.NewRequestor(c, c, c, &cfg)
 	reg := orchestrator.NewRegistry()
-	d := orchestrator.NewDispatcher(c, c, c, reg)
+	d := orchestrator.NewDispatcher(c, c, c, reg, &cfg)
 	flows.Init(c, c, c, c, req, c, reg)
 
 	healthServer := health.NewServer(&cfg, c, c, c)

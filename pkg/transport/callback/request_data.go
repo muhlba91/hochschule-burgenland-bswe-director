@@ -6,6 +6,7 @@ type RequestData interface {
 	GetSessionID() string
 
 	// SetCallback sets the callback URL for the request.
+	// callback: The URL to which the requestor should send the response.
 	SetCallback(callback string)
 }
 

@@ -34,6 +34,7 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 			)
 			return echo.NewHTTPError(http.StatusBadRequest, response.NewError(response.ErrInvalidPayload))
 		}
+
 		body := json.RawMessage(data)
 		slog.DebugContext(ctx, "callback request body",
 			slog.String(logging.FieldRequestID, requestID),

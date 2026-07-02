@@ -145,6 +145,9 @@ func (r *Requestor) CreateRequest(
 	}
 
 	request.ID = uuid.NewString()
+	if r.config.CallbackAuthEnabled {
+		request.Secret = uuid.NewString()
+	}
 	data.SetCallback(fmt.Sprintf("%s/callback/%s", r.config.BaseURL, request.ID))
 
 	body, rbErr := json.Marshal(data)
@@ -445,6 +448,9 @@ func (r *Requestor) sendRequest(
 		return callback.ErrInvalidRequest
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if request.Secret != "" {
+		req.Header.Set("X-Callback-Secret", request.Secret)
+	}
 
 	resp, hErr := r.httpClient.Do(req)
 	if hErr != nil {

@@ -5,11 +5,12 @@ import (
 )
 
 var (
-	ErrInvalidPayload      = errors.New("invalid payload")
-	ErrNoMatchingRequest   = errors.New("no matching request found")
-	ErrCallbackNotExpected = errors.New("callback not expected for this session")
-	ErrActionFailed        = errors.New("action failed")
-	ErrCompletionFailed    = errors.New("completion failed")
+	ErrInvalidPayload        = errors.New("invalid payload")
+	ErrNoMatchingRequest     = errors.New("no matching request found")
+	ErrCallbackNotExpected   = errors.New("callback not expected for this session")
+	ErrActionFailed          = errors.New("action failed")
+	ErrCompletionFailed      = errors.New("completion failed")
+	ErrCallbackNotAuthorized = errors.New("callback not authorized")
 )
 
 // NewError creates a JSON-formatted error response string from the given error.
