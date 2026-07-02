@@ -59,16 +59,23 @@ The director supports a turn-based Pokémon card game flow. It registers flow lo
 
 ### Environment Configuration
 
-| Variable         | Description                                                        | Default                 |
-| ---------------- | ------------------------------------------------------------------ | ----------------------- |
-| `SERVER_HOST`    | Host address for the Echo API server to listen on.                 | `0.0.0.0`               |
-| `SERVER_PORT`    | Port for the Echo API server.                                      | `8888`                  |
-| `HEALTHZ_HOST`   | Host address for Kubernetes health probe endpoints.                | `0.0.0.0`               |
-| `HEALTHZ_PORT`   | Port for health probe endpoints.                                   | `8080`                  |
-| `REDIS_HOST`     | Redis database address.                                            | `localhost`             |
-| `REDIS_PORT`     | Redis database port.                                               | `6379`                  |
-| `REDIS_PASSWORD` | Redis authentication password (optional).                          | *(empty)*               |
-| `BASE_URL`       | Public URL of this Director, used for generating callback links.   | `http://localhost:8888` |
+| Variable                  | Description                                                        | Default                 |
+| ------------------------- | ------------------------------------------------------------------ | ----------------------- |
+| `SERVER_HOST`             | Host address for the Echo API server to listen on.                 | `0.0.0.0`               |
+| `SERVER_PORT`             | Port for the Echo API server.                                      | `8888`                  |
+| `HEALTHZ_HOST`            | Host address for Kubernetes health probe endpoints.                | `0.0.0.0`               |
+| `HEALTHZ_PORT`            | Port for health probe endpoints.                                   | `8080`                  |
+| `REDIS_HOST`              | Redis database address.                                            | `localhost`             |
+| `REDIS_PORT`              | Redis database port.                                               | `6379`                  |
+| `REDIS_PASSWORD`          | Redis authentication password (optional).                          | *(empty)*               |
+| `BASE_URL`                | Public URL of this Director, used for generating callback links.   | `http://localhost:8888` |
+| `RATE_LIMIT`              | Number of allowed requests per second.                             | `10`                    |
+| `BURST_LIMIT`             | Maximum number of requests allowed in a burst.                     | `20`                    |
+| `RATE_LIMIT_WINDOW`       | Duration for which the rate limit is applied.                      | `3m`                    |
+| `CALLBACK_AUTH_ENABLED`   | Enable HMAC verification for incoming callbacks.                   | `false`                 |
+| `AUTH_ENABLED`            | Enable JWT authentication for WebSocket connections.               | `false`                 |
+| `AUTH_SECRET`             | Secret for signing JWT tokens and verifying API keys.              | *(empty)*               |
+| `TOKEN_TTL`               | JWT token expiration time in seconds.                              | `86400`                  |
 
 ### Development
 

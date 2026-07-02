@@ -39,7 +39,7 @@ func NewServer(
 	}
 
 	configureServer(s, configuration)
-	configureRoutes(s)
+	configureRoutes(s, configuration)
 
 	return s
 }

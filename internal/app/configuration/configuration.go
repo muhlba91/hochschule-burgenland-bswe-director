@@ -34,6 +34,12 @@ type Data struct {
 	RateLimitWindow time.Duration `env:"RATE_LIMIT_WINDOW" envDefault:"3m"`
 	// CallbackAuthEnabled indicates whether callback authentication is enabled.
 	CallbackAuthEnabled bool `env:"CALLBACK_AUTH_ENABLED" envDefault:"false"`
+	// AuthEnabled indicates whether authentication is enabled.
+	AuthEnabled bool `env:"AUTH_ENABLED" envDefault:"false"`
+	// AuthSecret is the secret used for signing JWTs and verifying API keys.
+	AuthSecret string `env:"AUTH_SECRET"`
+	// TokenTTL is the duration for which a JWT is valid (in seconds).
+	TokenTTL int `env:"TOKEN_TTL" envDefault:"86400"`
 }
 
 // Init reads the configuration from environment variables and returns a Config struct.

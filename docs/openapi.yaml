@@ -5,13 +5,67 @@ info:
   version: 1.0.0
   description: Generic high-concurrency state-machine flow orchestrator.
 paths:
+  /token:
+    post:
+      summary: Exchange API Key for JWT
+      description: Clients provide their `clientID` and deterministic `apiKey` to receive a short-lived JWT for subsequent WebSocket authentication.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - clientID
+                - apiKey
+              properties:
+                clientID:
+                  type: string
+                  description: The unique identifier for the client.
+                apiKey:
+                  type: string
+                  description: The deterministic HMAC-SHA256 key generated for the client.
+      responses:
+        "200":
+          description: Successfully issued a JWT.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  expires_in:
+                    type: integer
+        "401":
+          description: Invalid clientID or apiKey.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallbackResponse"
+        "500":
+          description: Internal processing error (e.g. auth secret not configured).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallbackResponse"
+
   /ws:
     get:
       summary: Establish WebSocket Connection
       description: Establishes a persistent real-time connection with clients for session updates and broadcasts.
+      security:
+        - bearerAuth: []
+        - queryAuth: []
       responses:
         "101":
           description: Switching protocols to WebSocket.
+        "401":
+          description: Invalid or missing authentication token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallbackResponse"
   /callback/{requestId}:
     post:
       summary: Deliver Asynchronous Agent Callback
@@ -21,6 +75,12 @@ paths:
           in: path
           required: true
           description: The unique transaction identifier corresponding to the pending callback request.
+          schema:
+            type: string
+        - name: X-Signature
+          in: header
+          required: false
+          description: HMAC-SHA256 signature of the payload using the per-request secret. Required if `CALLBACK_AUTH_ENABLED` is true.
           schema:
             type: string
       requestBody:
@@ -39,8 +99,22 @@ paths:
                 $ref: "#/components/schemas/CallbackResponse"
         "400":
           description: Invalid payload or request parameters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallbackResponse"
+        "401":
+          description: Callback not authorized (HMAC mismatch).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallbackResponse"
         "409":
           description: Callback not expected for this session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallbackResponse"
         "410":
           description: Request not found or expired.
         "500":
@@ -92,6 +166,15 @@ paths:
                 $ref: "#/components/schemas/ComponentHealthResponse"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    queryAuth:
+      type: apiKey
+      in: query
+      name: token
   schemas:
     CallbackResponse:
       type: object
