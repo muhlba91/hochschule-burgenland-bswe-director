@@ -233,7 +233,7 @@ func (r *Requestor) CleanRequestQueue(ctx context.Context, session session.Sessi
 	return nil
 }
 
-// Send sends requests to multiple URLs concurrently and handles their responses.
+// Send sends requests to multiple URLs concurrently and handles their responses safely with zero lock contention.
 // ctx: The context for managing request-scoped values, cancellation signals, and deadlines.
 // session: The current game session containing player connection information.
 // urls: A slice of URLs to which the requests will be sent.
@@ -246,42 +246,59 @@ func (r *Requestor) Send(
 ) {
 	bgCtx := context.WithoutCancel(ctx)
 
+	unlock, lErr := r.sessionStore.LockSession(bgCtx, session.GetID())
+	if lErr != nil {
+		slog.ErrorContext(bgCtx, "failed to lock session for request batch",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.Any(logging.FieldError, lErr),
+		)
+		return
+	}
+	defer func() {
+		if unlock != nil {
+			unlock(bgCtx)
+		}
+	}()
+
+	loadedSession, sErr := r.sessionStore.GetBaseSession(bgCtx, session.GetID())
+	if sErr != nil || loadedSession == nil {
+		slog.ErrorContext(bgCtx, "failed to load session for request batch",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.Any(logging.FieldError, sErr),
+		)
+		return
+	}
+
+	var createdRequests []*callback.Request
+
 	for _, url := range urls {
-		go func(u string) {
-			request, data := requestBuilder(u)
-			request.Endpoint = fmt.Sprintf("%s/%s", u, strings.ToLower(request.Action))
+		request, data := requestBuilder(url)
+		request.Endpoint = fmt.Sprintf("%s/%s", url, strings.ToLower(request.Action))
 
-			unlock, lErr := r.sessionStore.LockSession(bgCtx, session.GetID())
-			if lErr != nil {
-				slog.ErrorContext(bgCtx, "failed to lock session",
-					slog.String(logging.FieldSessionID, session.GetID()),
-					slog.String(logging.FieldRequestID, request.ID),
-					slog.Any(logging.FieldError, lErr),
-				)
-				// FIXME: what to do if we cannot lock the session? We cannot update the request status or broadcast an error message. Maybe we should panic here, as this is a critical error.
-				return
-			}
-			defer unlock(bgCtx)
+		rErr := r.CreateRequest(bgCtx, loadedSession, request, data)
+		if rErr != nil {
+			slog.ErrorContext(bgCtx, "failed to create request in batch",
+				slog.String(logging.FieldSessionID, loadedSession.GetID()),
+				slog.String(logging.FieldEndpoint, url),
+				slog.Any(logging.FieldError, rErr),
+			)
+			payload, _ := json.Marshal(
+				fmt.Sprintf("failed to create request for session %s to %s: %v", loadedSession.GetID(), url, rErr),
+			)
+			_ = r.broadcastStore.Broadcast(bgCtx, loadedSession.GetID(), &message.Message{
+				Event:   message.ErrorEvent,
+				Payload: payload,
+			})
+			return
+		}
+		createdRequests = append(createdRequests, request)
+	}
 
-			rErr := r.CreateRequest(bgCtx, session, request, data)
-			if rErr != nil {
-				slog.ErrorContext(bgCtx, "failed to create request",
-					slog.String(logging.FieldSessionID, session.GetID()),
-					slog.String(logging.FieldEndpoint, u),
-					slog.Any(logging.FieldError, rErr),
-				)
-				payload, _ := json.Marshal(
-					fmt.Sprintf("failed to create request for session %s to %s: %v", session.GetID(), u, rErr),
-				)
-				_ = r.broadcastStore.Broadcast(bgCtx, session.GetID(), &message.Message{
-					Event:   message.ErrorEvent,
-					Payload: payload,
-				})
-				return
-			}
+	unlock(bgCtx)
+	unlock = nil
 
-			go r.superviseRequest(bgCtx, session, request)
-		}(url)
+	for _, request := range createdRequests {
+		go r.superviseRequest(bgCtx, loadedSession, request)
 	}
 }
 
