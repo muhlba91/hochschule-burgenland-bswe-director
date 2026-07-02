@@ -8,66 +8,106 @@
 [![](https://img.shields.io/github/all-contributors/muhlba91/hochschule-burgenland-bswe-director?color=ee8449&style=for-the-badge)](#contributors)
 <a href="https://www.buymeacoffee.com/muhlba91" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="28" width="150"></a>
 
-Flow Director is a Go-based service designed to manage flow sessions.
-
-//FIXME: update readme
+**Flow Director** is a generic, high-concurrency Go-based service designed to orchestrate state-machine flows. It serves as a central middleware hub, bridging real-time clients (WebSockets) and external player/agent microservices (HTTP POST callbacks) using a highly modular registry.
 
 ---
 
-## Features
+## Architecture Overview
 
-- **AI-Powered OCR**: Uses Google Gemini (e.g., `gemini-1.5-flash`) to interpret water meter readings from images.
-- **MQTT Integration**: Subscribes to an image topic and publishes the processed readings.
-- **Home Assistant Discovery**: Automatically creates a sensor in Home Assistant for easy monitoring.
-- **Cloud Storage Backup**: Optionally uploads processed images to Scaleway Object Storage (S3 compatible).
-- **Health Monitoring**: Includes a `healthz` server for liveness, readiness, and startup checks.
+### Key Components
 
----
+- **Registry**: Allows developer-defined flows to register custom WebSocket events and Callback action handlers.
+- **Requestor**: Dispatches async requests to external player URLs, manages retry limits, handles request parallelization constraints, and tracks pending callbacks in Redis.
+- **Distributed Locking**: Employs Redis-based distributed locks to protect state transitions from concurrent WebSockets or HTTP callback events.
+- **Real-time Pub/Sub**: Broadcasts state updates to all active client WebSocket connections automatically when session data changes.
 
-## Configuration
+### Communication Paradigms
 
-Configure the application using the following environment variables:
+The director processes two major categories of communication to coordinate active sessions:
 
-| Variable                             | Description                                         | Default                         |
-| ------------------------------------ | --------------------------------------------------- | ------------------------------- |
-| `METER_ID`                           | Unique identifier for the meter.                    | `water-meter`                   |
-| `METER_NAME`                         | Display name for the meter.                         | `Water Meter`                   |
-| `METER_MODEL`                        | Model description of the meter.                     | `ESP32 Water Meter`             |
-| `BROKER_ADDRESS`                     | MQTT broker address (e.g., `tcp://localhost:1883`). | `tcp://localhost:1883`          |
-| `BROKER_TOPIC_SUBSCRIPTION_TEMPLATE` | Template for image subscription topic.              | `tele/%s/image`                 |
-| `BROKER_TOPIC_PUBLISH_TEMPLATE`      | Template for usage publication topic.               | `stat/%s/water/usage/state`     |
-| `BROKER_CLIENT_ID`                   | MQTT client ID.                                     | *(optional)*                    |
-| `BROKER_USERNAME`                    | MQTT username.                                      | *(optional)*                    |
-| `BROKER_PASSWORD`                    | MQTT password.                                      | *(optional)*                    |
-| `GEMINI_API_KEY`                     | Google Gemini API key.                              | *(required)*                    |
-| `GEMINI_MODEL`                       | Gemini model to use.                                | `gemini-3.1-flash-lite-preview` |
-| `SCW_REGION`                         | Scaleway region for S3 backup.                      | `fr-par`                        |
-| `SCW_ACCESS_KEY`                     | Scaleway access key.                                | *(optional)*                    |
-| `SCW_SECRET_KEY`                     | Scaleway secret key.                                | *(optional)*                    |
-| `SCW_BUCKET`                         | Scaleway S3 bucket name.                            | *(optional)*                    |
-| `SCW_BUCKET_PATH`                    | Path template within the bucket.                    | `watermeter/%s/`                |
-| `HEALTHZ_HOST`                       | Host for the health server.                         | `0.0.0.0`                       |
-| `HEALTHZ_PORT`                       | Port for the health server.                         | `8080`                          |
+#### WebSocket Messages (Client <-> Director)
+
+Clients, frontends, or game-boards connect via the WebSocket endpoint.
+
+- **Inbound (Client to Director)**: Used for session administration, including creating lobbies, joining sessions, querying session directories, or manual state retrieval.
+- **Outbound (Director to Client)**: Broadcasts updated, real-time board states, connection events, or winner declarations to all active connections in a session whenever data transitions.
+
+#### Callback Actions & Requests (Director <-> Agent)
+
+Communication with player or automated agent microservices occurs asynchronously via HTTP.
+
+- **Outgoing Request (Director to Agent)**: When the state machine requires an action (e.g., turn decision, startup config, game moves), the **Requestor** dispatches a POST request containing the current filtered session state and a unique callback URL: `<BASE_URL>/callback/<requestId>`.
+- **Inbound Callback (Agent to Director)**: Once the agent determines its choice, it posts the result back to the unique callback route, prompting the dispatcher to lock, apply, and broadcast the transaction.
 
 ---
 
-## Deployment
+## Supported Flows
 
-### Docker Run
+The director is designed to be easily extensible. 
 
-To run the processor using Docker, you need a Google Gemini API key and an MQTT broker.
+### Pokémon Battle Flow
+
+The director supports a turn-based Pokémon card game flow. It registers flow logic to handle:
+
+- **Session Initialization**: Automatically provisions player decks, HP trackers, and energy cards.
+- **Sequential Turn Coordination**: Coordinates player hand state filtering and sequential decision-making requests.
+- **Action & Damage Parsing**: Executes selected attacks, resolves damage modifiers, checks state for defeated cards, and evaluates winning conditions.
+
+---
+
+## Configuration & Deployment
+
+### Environment Configuration
+
+| Variable         | Description                                                        | Default                 |
+| ---------------- | ------------------------------------------------------------------ | ----------------------- |
+| `SERVER_HOST`    | Host address for the Echo API server to listen on.                 | `0.0.0.0`               |
+| `SERVER_PORT`    | Port for the Echo API server.                                      | `8888`                  |
+| `HEALTHZ_HOST`   | Host address for Kubernetes health probe endpoints.                | `0.0.0.0`               |
+| `HEALTHZ_PORT`   | Port for health probe endpoints.                                   | `8080`                  |
+| `REDIS_HOST`     | Redis database address.                                            | `localhost`             |
+| `REDIS_PORT`     | Redis database port.                                               | `6379`                  |
+| `REDIS_PASSWORD` | Redis authentication password (optional).                          | *(empty)*               |
+| `BASE_URL`       | Public URL of this Director, used for generating callback links.   | `http://localhost:8888` |
+
+### Development
+
+Build and test the application using the included commands:
+
+```shell
+make lint        # Run linter checks
+make fix         # Format source code
+make build       # Compile binary
+make test        # Run unit tests
+make coverage    # Generate code coverage reports
+```
+
+### Deployment
+
+Run a local Redis container:
+
+```shell
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+```
+
+Run the Director:
 
 ```shell
 docker run -d \
-  --name hochschule-burgenland-bswe-director \
-  -e BROKER_ADDRESS="tcp://mqtt-broker:1883" \
-  -e GEMINI_API_KEY="your-gemini-api-key" \
-  -e METER_ID="my-water-meter" \
+  --name game-director \
+  -p 8888:8888 \
+  -p 8080:8080 \
+  -e REDIS_HOST="host.docker.internal" \
+  -e BASE_URL="http://localhost:8888" \
   ghcr.io/muhlba91/hochschule-burgenland-bswe-director:latest
 ```
 
 ---
 
-## Testing
+## Health Probes
 
-//TODO: Add testing instructions here.
+The director exposes dedicated health endpoints for container orchestrators:
+
+- **Liveness**: `/livez` - Verifies the server is operational.
+- **Readiness**: `/healthz` - Tests connections to backend Redis stores. Returns `200 OK` or `503 Service Unavailable`.
+- **Startup**: `/startupz` - Asserts successful server startup.
