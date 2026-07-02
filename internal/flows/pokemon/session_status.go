@@ -3,8 +3,7 @@ package pokemon
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
@@ -43,11 +42,11 @@ func (gp *Gameplay) Disconnect(
 		disconnected := false
 		for _, player := range session.Players {
 			if player.ConnectionID != nil && *player.ConnectionID == connectionData.ConnectionID {
-				logrus.WithFields(logrus.Fields{
-					logging.FieldPlayerID:     player.ID,
-					logging.FieldSessionID:    *connectionData.SessionID,
-					logging.FieldConnectionID: connectionData.ConnectionID,
-				}).Debug("player is disconnecting from the session")
+				slog.DebugContext(ctx, "player is disconnecting from the session",
+					slog.String(logging.FieldPlayerID, player.ID),
+					slog.String(logging.FieldSessionID, *connectionData.SessionID),
+					slog.String(logging.FieldConnectionID, connectionData.ConnectionID),
+				)
 				player.Connected = false
 				player.ConnectionID = nil
 				disconnected = true
@@ -56,10 +55,10 @@ func (gp *Gameplay) Disconnect(
 		}
 
 		if !disconnected {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldConnectionID: connectionData.ConnectionID,
-				logging.FieldSessionID:    *connectionData.SessionID,
-			}).Info("connection ID is not associated with any player in session for disconnect")
+			slog.InfoContext(ctx, "connection ID is not associated with any player in session for disconnect",
+				slog.String(logging.FieldConnectionID, connectionData.ConnectionID),
+				slog.String(logging.FieldSessionID, *connectionData.SessionID),
+			)
 		}
 
 		if !disconnected {
@@ -75,11 +74,11 @@ func (gp *Gameplay) Disconnect(
 		}
 	}
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldSessionID: *connectionData.SessionID,
-		logging.FieldEvent:     msgEvent,
-		logging.FieldPayload:   string(payload),
-	}).Debug("disconnect session response")
+	slog.DebugContext(ctx, "disconnect session response",
+		slog.String(logging.FieldSessionID, *connectionData.SessionID),
+		slog.String(logging.FieldEvent, msgEvent),
+		slog.String(logging.FieldPayload, string(payload)),
+	)
 
 	return &message.Message{
 		Event:   msgEvent,
@@ -92,17 +91,17 @@ func (gp *Gameplay) Disconnect(
 // _: The connection.Data struct (not used in this function).
 // connectionData: The connection data for the websocket connection.
 func (gp *Gameplay) ConnectionInformation(
-	_ context.Context,
+	ctx context.Context,
 	_ *connection.Data,
 	connectionData *connection.Data,
 ) *message.Message {
 	msgEvent := string(globalEvent.ConnectionInformation)
 	payload, _ := json.Marshal(connectionData)
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldEvent:   msgEvent,
-		logging.FieldPayload: string(payload),
-	}).Debug("connection information response")
+	slog.DebugContext(ctx, "connection information response",
+		slog.String(logging.FieldEvent, msgEvent),
+		slog.String(logging.FieldPayload, string(payload)),
+	)
 
 	return &message.Message{
 		Event:   msgEvent,
@@ -132,10 +131,10 @@ func (gp *Gameplay) State(
 	msgEvent := gp.generateEventName(event.TypeCurrentState)
 	payload, _ := json.Marshal(state)
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldEvent:   msgEvent,
-		logging.FieldPayload: string(payload),
-	}).Debug("current state response")
+	slog.DebugContext(ctx, "current state response",
+		slog.String(logging.FieldEvent, msgEvent),
+		slog.String(logging.FieldPayload, string(payload)),
+	)
 
 	return &message.Message{
 		Event:   msgEvent,

@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
@@ -65,9 +64,13 @@ func (s *Server) Start() {
 	}
 
 	go func() {
-		logrus.Infof("starting healthz server on %s", s.address)
+		slog.InfoContext(context.Background(), "starting healthz server",
+			slog.String("address", s.address),
+		)
 		if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logrus.Errorf("failed to start healthz server: %v", err)
+			slog.ErrorContext(context.Background(), "failed to start healthz server",
+				slog.Any("error", err),
+			)
 		}
 	}()
 }
@@ -78,12 +81,14 @@ func (s *Server) Stop() {
 		return
 	}
 
-	logrus.Info("shutting down healthz server")
+	slog.InfoContext(context.Background(), "shutting down healthz server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
 	if err := s.server.Shutdown(ctx); err != nil {
-		logrus.Errorf("failed to shutdown healthz server: %v", err)
+		slog.ErrorContext(ctx, "failed to shutdown healthz server",
+			slog.Any("error", err),
+		)
 	}
 }

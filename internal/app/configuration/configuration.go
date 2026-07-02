@@ -1,8 +1,10 @@
 package configuration
 
 import (
+	"log/slog"
+	"os"
+
 	"github.com/caarlos0/env/v11"
-	log "github.com/sirupsen/logrus"
 )
 
 // Data defines the configuration for the director init command, which is read from environment variables.
@@ -29,7 +31,8 @@ type Data struct {
 func Init() Data {
 	cfg := Data{}
 	if err := env.Parse(&cfg); err != nil {
-		log.Fatalf("error reading configuration from environment: %v", err)
+		slog.Error("error reading configuration from environment", slog.Any("error", err))
+		os.Exit(1)
 	}
 	return cfg
 }

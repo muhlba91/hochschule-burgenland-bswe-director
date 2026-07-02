@@ -3,10 +3,11 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	pokemonSession "github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/session"
@@ -61,7 +62,7 @@ func (w *Wrapper) GetSession(ctx context.Context, sessionID string) (*pokemonSes
 
 	var session pokemonSession.Session
 	if err := json.Unmarshal([]byte(*sessionData), &session); err != nil {
-		logrus.Debugf("error occurred while unmarshaling session data: %v", err)
+		slog.DebugContext(ctx, "error occurred while unmarshaling session data", slog.Any(logging.FieldError, err))
 		return nil, err
 	}
 

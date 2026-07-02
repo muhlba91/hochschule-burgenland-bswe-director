@@ -3,8 +3,7 @@ package pokemon
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
@@ -39,10 +38,10 @@ func (gp *Gameplay) PlayerInformation(
 	msgEvent := gp.generateEventName(event.TypePlayerDetails)
 	payload, _ := json.Marshal(playerDetails)
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldEvent:   msgEvent,
-		logging.FieldPayload: string(payload),
-	}).Debug("current player information response")
+	slog.DebugContext(ctx, "current player information response",
+		slog.String(logging.FieldEvent, msgEvent),
+		slog.String(logging.FieldPayload, string(payload)),
+	)
 
 	return &message.Message{
 		Event:   msgEvent,

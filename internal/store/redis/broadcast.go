@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
@@ -33,17 +32,17 @@ func (c *Cache) Broadcast(ctx context.Context, sessionID string, data any) error
 	channelKey := fmt.Sprintf("%s:%s", sessionID, constants.BroadcastChannel)
 	payload, _ := json.Marshal(data)
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldSessionID: sessionID,
-		"channel_key":          channelKey,
-		logging.FieldData:      string(payload),
-	}).Debug("publishing broadcast")
+	slog.DebugContext(ctx, "publishing broadcast",
+		slog.String(logging.FieldSessionID, sessionID),
+		slog.String("channel_key", channelKey),
+		slog.String(logging.FieldData, string(payload)),
+	)
 	if err := c.client.Publish(ctx, channelKey, payload).Err(); err != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: sessionID,
-			"channel_key":          channelKey,
-			logging.FieldError:     err,
-		}).Error("failed to publish broadcast")
+		slog.ErrorContext(ctx, "failed to publish broadcast",
+			slog.String(logging.FieldSessionID, sessionID),
+			slog.String("channel_key", channelKey),
+			slog.Any(logging.FieldError, err),
+		)
 		return err
 	}
 

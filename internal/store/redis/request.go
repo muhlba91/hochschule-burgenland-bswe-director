@@ -3,8 +3,7 @@ package redis
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
@@ -17,10 +16,10 @@ import (
 // request: The request data to be stored in the cache.
 func (c *Cache) CreateRequest(ctx context.Context, request *callback.Request) error {
 	if err := c.Set(ctx, request.ID, request, constants.DefaultRequestExpiration); err != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldRequestID: request.ID,
-			logging.FieldError:     err,
-		}).Error("failed to save request")
+		slog.ErrorContext(ctx, "failed to save request",
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Any(logging.FieldError, err),
+		)
 		return err
 	}
 
@@ -31,7 +30,9 @@ func (c *Cache) CreateRequest(ctx context.Context, request *callback.Request) er
 // ctx: The context for the operation.
 // request: The request data to be stored in the cache.
 func (c *Cache) UpdateRequest(ctx context.Context, request *callback.Request) error {
-	logrus.Debugf("updating request with ID: %s", request.ID)
+	slog.DebugContext(ctx, "updating request",
+		slog.String(logging.FieldRequestID, request.ID),
+	)
 	return c.CreateRequest(ctx, request)
 }
 
@@ -46,10 +47,10 @@ func (c *Cache) GetRequest(ctx context.Context, requestID string) (*callback.Req
 
 	var requestModel callback.Request
 	if uErr := json.Unmarshal([]byte(*request), &requestModel); uErr != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldRequestID: requestID,
-			logging.FieldError:     uErr,
-		}).Error("failed to unmarshal request data")
+		slog.ErrorContext(ctx, "failed to unmarshal request data",
+			slog.String(logging.FieldRequestID, requestID),
+			slog.Any(logging.FieldError, uErr),
+		)
 		return nil, uErr
 	}
 
@@ -68,24 +69,25 @@ func (c *Cache) CompleteRequest(
 	if request.Parallelization != 0 {
 		session.DeleteNextRequest(request.ID)
 		if err := c.UpdateSession(ctx, session.GetID(), session); err != nil {
-			logrus.Errorf(
-				"failed to update session %s for deleting the request %s: %v",
-				session.GetID(),
-				request.ID,
-				err,
+			slog.ErrorContext(ctx, "failed to update session for deleting the request",
+				slog.String(logging.FieldSessionID, session.GetID()),
+				slog.String(logging.FieldRequestID, request.ID),
+				slog.Any(logging.FieldError, err),
 			)
 			return err
 		}
 	}
 
 	if err := c.Delete(ctx, request.ID); err != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldRequestID: request.ID,
-			logging.FieldError:     err,
-		}).Error("failed to delete request")
+		slog.ErrorContext(ctx, "failed to delete request",
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Any(logging.FieldError, err),
+		)
 		return err
 	}
 
-	logrus.Debugf("deleted request %s", request.ID)
+	slog.DebugContext(ctx, "deleted request",
+		slog.String(logging.FieldRequestID, request.ID),
+	)
 	return nil
 }

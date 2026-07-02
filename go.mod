@@ -9,7 +9,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.15.4
 	github.com/redis/go-redis/v9 v9.20.1
-	github.com/sirupsen/logrus v1.9.4
 )
 
 require (

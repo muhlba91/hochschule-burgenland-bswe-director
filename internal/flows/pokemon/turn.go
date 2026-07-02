@@ -3,11 +3,11 @@ package pokemon
 import (
 	"context"
 	"crypto/rand"
+	"log/slog"
 	"math/big"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
@@ -25,35 +25,35 @@ import (
 func (gp *Gameplay) NextTurn(ctx context.Context, session pkgSession.Session) {
 	unlock, lErr := gp.store.LockSession(ctx, session.GetID())
 	if lErr != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldError:     lErr,
-		}).Error("failed to lock session")
+		slog.ErrorContext(ctx, "failed to lock session",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.Any(logging.FieldError, lErr),
+		)
 		gp.reportBackgroundError(ctx, session.GetID(), message.ErrSessionLocked)
 		return
 	}
 	defer unlock(ctx)
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldSessionID: session.GetID(),
-	}).Info("starting next turn")
+	slog.InfoContext(ctx, "starting next turn",
+		slog.String(logging.FieldSessionID, session.GetID()),
+	)
 
 	pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
 	if psErr != nil || pokemonSession == nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldError:     psErr,
-		}).Error("failed to get session")
+		slog.ErrorContext(ctx, "failed to get session",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.Any(logging.FieldError, psErr),
+		)
 		gp.reportBackgroundError(ctx, session.GetID(), message.ErrSessionNotFound)
 		return
 	}
 
 	state, sErr := gp.store.GetState(ctx, session.GetID())
 	if sErr != nil || state == nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldError:     sErr,
-		}).Error("failed to get state")
+		slog.ErrorContext(ctx, "failed to get state",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.Any(logging.FieldError, sErr),
+		)
 		gp.reportBackgroundError(ctx, session.GetID(), message.ErrSessionStateNotFound)
 		return
 	}
@@ -116,18 +116,18 @@ func (gp *Gameplay) TurnCallback(
 
 	pokemonSession, psErr := gp.store.GetSession(ctx, session.GetID())
 	if psErr != nil || pokemonSession == nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldError:     psErr,
-		}).Error("failed to get session")
+		slog.ErrorContext(ctx, "failed to get session",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.Any(logging.FieldError, psErr),
+		)
 		return psErr
 	}
 
 	if data.Attack != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldPlayerID:  request.InternalID,
-			logging.FieldSessionID: session.GetID(),
-		}).Debug("player performed an attack")
+		slog.DebugContext(ctx, "player performed an attack",
+			slog.String(logging.FieldPlayerID, request.InternalID),
+			slog.String(logging.FieldSessionID, session.GetID()),
+		)
 
 		opponent := pokemonSession.GetOpponentForID(request.InternalID)
 

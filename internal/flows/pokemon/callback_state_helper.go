@@ -2,8 +2,7 @@ package pokemon
 
 import (
 	"context"
-
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/state"
@@ -22,10 +21,10 @@ func (gp *Gameplay) updateState(
 ) (*state.State, error) {
 	state, sErr := gp.store.GetState(ctx, sessionID)
 	if sErr != nil || state == nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: sessionID,
-			logging.FieldError:     sErr,
-		}).Error("failed to get state")
+		slog.Error("failed to get state",
+			slog.String(logging.FieldSessionID, sessionID),
+			slog.Any(logging.FieldError, sErr),
+		)
 		return nil, sErr
 	}
 
@@ -33,10 +32,10 @@ func (gp *Gameplay) updateState(
 
 	uErr := gp.store.UpdateState(ctx, state)
 	if uErr != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: sessionID,
-			logging.FieldError:     uErr,
-		}).Error("failed to update state")
+		slog.Error("failed to update state",
+			slog.String(logging.FieldSessionID, sessionID),
+			slog.Any(logging.FieldError, uErr),
+		)
 		return nil, uErr
 	}
 

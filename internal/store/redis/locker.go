@@ -3,10 +3,10 @@ package redis
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/go-redsync/redsync/v4"
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
@@ -48,30 +48,30 @@ func (c *Cache) LockWithOptions(
 		redsync.WithRetryDelay(delay),
 	)
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldLockKey: lockKey,
-	}).Debug("attempting to acquire lock")
+	slog.DebugContext(ctx, "attempting to acquire lock",
+		slog.String(logging.FieldLockKey, lockKey),
+	)
 	if err := mutex.LockContext(ctx); err != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldLockKey: lockKey,
-			logging.FieldError:   err,
-		}).Error("failed to acquire lock")
+		slog.ErrorContext(ctx, "failed to acquire lock",
+			slog.String(logging.FieldLockKey, lockKey),
+			slog.Any(logging.FieldError, err),
+		)
 		return nil, err
 	}
-	logrus.WithFields(logrus.Fields{
-		logging.FieldLockKey: lockKey,
-	}).Debug("acquired lock")
+	slog.DebugContext(ctx, "acquired lock",
+		slog.String(logging.FieldLockKey, lockKey),
+	)
 
 	return func(uCtx context.Context) {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldLockKey: lockKey,
-		}).Debug("releasing lock")
+		slog.DebugContext(uCtx, "releasing lock",
+			slog.String(logging.FieldLockKey, lockKey),
+		)
 		_, err := mutex.UnlockContext(context.WithoutCancel(uCtx))
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldLockKey: lockKey,
-				logging.FieldError:   err,
-			}).Error("error releasing lock")
+			slog.ErrorContext(uCtx, "error releasing lock",
+				slog.String(logging.FieldLockKey, lockKey),
+				slog.Any(logging.FieldError, err),
+			)
 		}
 	}, nil
 }

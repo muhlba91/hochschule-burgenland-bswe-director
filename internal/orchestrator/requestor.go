@@ -5,13 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
@@ -90,22 +90,22 @@ func (r *Requestor) CheckParallelizationRestriction(
 	for _, rid := range session.GetNextRequests() {
 		pr, prErr := r.requestorStore.GetRequest(ctx, rid)
 		if prErr != nil || pr == nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldSessionID: session.GetID(),
-				logging.FieldRequestID: rid,
-				logging.FieldError:     prErr,
-			}).Warn("failed to retrieve pending request")
+			slog.WarnContext(ctx, "failed to retrieve pending request",
+				slog.String(logging.FieldSessionID, session.GetID()),
+				slog.String(logging.FieldRequestID, rid),
+				slog.Any(logging.FieldError, prErr),
+			)
 			continue
 		}
 
 		if pr.Parallelization != 0 {
 			if pr.Action != request.Action {
-				logrus.WithFields(logrus.Fields{
-					logging.FieldSessionID: session.GetID(),
-					logging.FieldRequestID: rid,
-					logging.FieldAction:    pr.Action,
-					"requested_action":     request.Action,
-				}).Warn("cannot create new request with different action")
+				slog.WarnContext(ctx, "cannot create new request with different action",
+					slog.String(logging.FieldSessionID, session.GetID()),
+					slog.String(logging.FieldRequestID, rid),
+					slog.String(logging.FieldAction, pr.Action),
+					slog.String("requested_action", request.Action),
+				)
 				return true
 			}
 			count++
@@ -113,12 +113,12 @@ func (r *Requestor) CheckParallelizationRestriction(
 	}
 
 	if count >= request.Parallelization {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			"count":                count,
-			logging.FieldAction:    request.Action,
-			"parallelization":      request.Parallelization,
-		}).Warn("parallelization limit reached")
+		slog.WarnContext(ctx, "parallelization limit reached",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.Int("count", count),
+			slog.String(logging.FieldAction, request.Action),
+			slog.Int("parallelization", request.Parallelization),
+		)
 		return true
 	}
 
@@ -138,10 +138,10 @@ func (r *Requestor) CreateRequest(
 ) error {
 	// FIXME: check session reloading especially when parallelization is used, as the session might be updated by other requests in the meantime
 	if r.CheckParallelizationRestriction(ctx, session, request) {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldRequestID: request.ID,
-		}).Warn("parallelization restriction violated")
+		slog.WarnContext(ctx, "parallelization restriction violated",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.String(logging.FieldRequestID, request.ID),
+		)
 		return callback.ErrRequestNotAllowed
 	}
 
@@ -150,33 +150,33 @@ func (r *Requestor) CreateRequest(
 
 	body, rbErr := json.Marshal(data)
 	if rbErr != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldRequestID: request.ID,
-			logging.FieldError:     rbErr,
-		}).Error("failed to marshal request body")
+		slog.ErrorContext(ctx, "failed to marshal request body",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Any(logging.FieldError, rbErr),
+		)
 		return callback.ErrInvalidRequest
 	}
 	request.Body = string(body)
 
 	request.CreatedAt = time.Now().Unix()
 	if uErr := r.requestorStore.CreateRequest(ctx, request); uErr != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldRequestID: request.ID,
-			logging.FieldError:     uErr,
-		}).Error("failed to store request")
+		slog.ErrorContext(ctx, "failed to store request",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Any(logging.FieldError, uErr),
+		)
 		return callback.ErrRequestNotSaved
 	}
 
 	if request.Parallelization != 0 {
 		session.UpdateNextRequests(request.ID)
 		if usErr := r.sessionStore.UpdateSession(ctx, session.GetID(), session); usErr != nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldSessionID: session.GetID(),
-				logging.FieldRequestID: request.ID,
-				logging.FieldError:     usErr,
-			}).Error("failed to update session with next request")
+			slog.ErrorContext(ctx, "failed to update session with next request",
+				slog.String(logging.FieldSessionID, session.GetID()),
+				slog.String(logging.FieldRequestID, request.ID),
+				slog.Any(logging.FieldError, usErr),
+			)
 			return callback.ErrSessionNotUpdated
 		}
 	}
@@ -198,9 +198,9 @@ func (r *Requestor) CleanRequestQueue(ctx context.Context, session session.Sessi
 	if len(session.GetNextRequests()) == 0 {
 		return nil
 	}
-	logrus.WithFields(logrus.Fields{
-		logging.FieldSessionID: session.GetID(),
-	}).Info("session has pending requests, cleaning up")
+	slog.InfoContext(ctx, "session has pending requests, cleaning up",
+		slog.String(logging.FieldSessionID, session.GetID()),
+	)
 
 	rids := make([]string, len(session.GetNextRequests()))
 	copy(rids, session.GetNextRequests())
@@ -208,18 +208,18 @@ func (r *Requestor) CleanRequestQueue(ctx context.Context, session session.Sessi
 	for _, rid := range rids {
 		request, gErr := r.GetRequest(ctx, rid)
 		if gErr != nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldSessionID: session.GetID(),
-				logging.FieldRequestID: rid,
-				logging.FieldError:     gErr,
-			}).Error("failed to retrieve request")
+			slog.ErrorContext(ctx, "failed to retrieve request",
+				slog.String(logging.FieldSessionID, session.GetID()),
+				slog.String(logging.FieldRequestID, rid),
+				slog.Any(logging.FieldError, gErr),
+			)
 			return gErr
 		}
 		if request == nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldSessionID: session.GetID(),
-				logging.FieldRequestID: rid,
-			}).Warn("request not found, deleting from queue")
+			slog.WarnContext(ctx, "request not found, deleting from queue",
+				slog.String(logging.FieldSessionID, session.GetID()),
+				slog.String(logging.FieldRequestID, rid),
+			)
 			session.DeleteNextRequest(rid)
 			_ = r.sessionStore.UpdateSession(ctx, session.GetID(), session)
 			continue
@@ -253,11 +253,11 @@ func (r *Requestor) Send(
 
 			unlock, lErr := r.sessionStore.LockSession(bgCtx, session.GetID())
 			if lErr != nil {
-				logrus.WithFields(logrus.Fields{
-					logging.FieldSessionID: session.GetID(),
-					logging.FieldRequestID: request.ID,
-					logging.FieldError:     lErr,
-				}).Error("failed to lock session")
+				slog.ErrorContext(bgCtx, "failed to lock session",
+					slog.String(logging.FieldSessionID, session.GetID()),
+					slog.String(logging.FieldRequestID, request.ID),
+					slog.Any(logging.FieldError, lErr),
+				)
 				// FIXME: what to do if we cannot lock the session? We cannot update the request status or broadcast an error message. Maybe we should panic here, as this is a critical error.
 				return
 			}
@@ -265,11 +265,11 @@ func (r *Requestor) Send(
 
 			rErr := r.CreateRequest(bgCtx, session, request, data)
 			if rErr != nil {
-				logrus.WithFields(logrus.Fields{
-					logging.FieldSessionID: session.GetID(),
-					logging.FieldEndpoint:  u,
-					logging.FieldError:     rErr,
-				}).Error("failed to create request")
+				slog.ErrorContext(bgCtx, "failed to create request",
+					slog.String(logging.FieldSessionID, session.GetID()),
+					slog.String(logging.FieldEndpoint, u),
+					slog.Any(logging.FieldError, rErr),
+				)
 				payload, _ := json.Marshal(
 					fmt.Sprintf("failed to create request for session %s to %s: %v", session.GetID(), u, rErr),
 				)
@@ -290,96 +290,97 @@ func (r *Requestor) Send(
 // session: The current game session containing player connection information.
 // request: The request to be supervised.
 func (r *Requestor) superviseRequest(ctx context.Context, session session.Session, request *callback.Request) {
-	logrus.WithFields(logrus.Fields{
-		logging.FieldSessionID: session.GetID(),
-		logging.FieldRequestID: request.ID,
-	}).Debug("supervising request")
+	slog.DebugContext(ctx, "supervising request",
+		slog.String(logging.FieldSessionID, session.GetID()),
+		slog.String(logging.FieldRequestID, request.ID),
+	)
 
 	var errMsg string
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		sErr := r.sendRequest(ctx, request)
 		if sErr != nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldSessionID: session.GetID(),
-				logging.FieldRequestID: request.ID,
-				logging.FieldAttempt:   attempt + 1,
-				logging.FieldError:     sErr,
-			}).Warn("failed to send request")
+			slog.WarnContext(ctx, "failed to send request",
+				slog.String(logging.FieldSessionID, session.GetID()),
+				slog.String(logging.FieldRequestID, request.ID),
+				slog.Int(logging.FieldAttempt, attempt+1),
+				slog.Any(logging.FieldError, sErr),
+			)
 
 			if attempt < maxRetries {
 				time.Sleep(randomRequestWaitTime())
 			} else {
-				logrus.WithFields(logrus.Fields{
-					logging.FieldSessionID: session.GetID(),
-					logging.FieldRequestID: request.ID,
-				}).Warn("max retries reached for sending request")
+				slog.WarnContext(ctx, "max retries reached for sending request",
+					slog.String(logging.FieldSessionID, session.GetID()),
+					slog.String(logging.FieldRequestID, request.ID),
+				)
 				errMsg = fmt.Sprintf("could not send request %s to %s", request.ID, request.Endpoint)
 			}
 
 			continue
 		}
 
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldRequestID: request.ID,
-			logging.FieldAttempt:   attempt + 1,
-		}).Debug("request sent successfully")
+		slog.DebugContext(ctx, "request sent successfully",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Int(logging.FieldAttempt, attempt+1),
+		)
 
 		cErr := r.waitForCallback(ctx, request)
 		if cErr != nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldSessionID: session.GetID(),
-				logging.FieldRequestID: request.ID,
-				logging.FieldAttempt:   attempt + 1,
-				logging.FieldError:     cErr,
-			}).Warn("failed to receive callback")
+			slog.WarnContext(ctx, "failed to receive callback",
+				slog.String(logging.FieldSessionID, session.GetID()),
+				slog.String(logging.FieldRequestID, request.ID),
+				slog.Int(logging.FieldAttempt, attempt+1),
+				slog.Any(logging.FieldError, cErr),
+			)
 
 			if attempt >= maxRetries {
-				logrus.WithFields(logrus.Fields{
-					logging.FieldSessionID: session.GetID(),
-					logging.FieldRequestID: request.ID,
-				}).Warn("max retries reached for receiving callback")
+				slog.WarnContext(ctx, "max retries reached for receiving callback",
+					slog.String(logging.FieldSessionID, session.GetID()),
+					slog.String(logging.FieldRequestID, request.ID),
+				)
 				errMsg = fmt.Sprintf("could not receive callback for request %s to %s", request.ID, request.Endpoint)
 			}
 
 			continue
 		}
 
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldRequestID: request.ID,
-			logging.FieldAttempt:   attempt + 1,
-		}).Debug("callback received")
+		slog.DebugContext(ctx, "callback received",
+			slog.String(logging.FieldSessionID, session.GetID()),
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Int(logging.FieldAttempt, attempt+1),
+		)
 		return
 	}
 
-	unlock, lErr := r.sessionStore.LockSession(ctx, session.GetID())
+	sessionID := session.GetID()
+	unlock, lErr := r.sessionStore.LockSession(ctx, sessionID)
 	if lErr != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldRequestID: request.ID,
-			logging.FieldError:     lErr,
-		}).Error("failed to lock session")
+		slog.ErrorContext(ctx, "failed to lock session",
+			slog.String(logging.FieldSessionID, sessionID),
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Any(logging.FieldError, lErr),
+		)
 		// FIXME: what to do if we cannot lock the session? We cannot update the request status or broadcast an error message. Maybe we should panic here, as this is a critical error.
 		return
 	}
 	defer unlock(ctx)
 
-	session, sErr := r.sessionStore.GetBaseSession(ctx, session.GetID())
-	if sErr != nil || session == nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: session.GetID(),
-			logging.FieldRequestID: request.ID,
-			logging.FieldError:     sErr,
-		}).Error("failed to retrieve session")
-		errMsg = fmt.Sprintf("could not find session %s for request %s", session.GetID(), request.ID)
+	baseSession, sErr := r.sessionStore.GetBaseSession(ctx, sessionID)
+	if sErr != nil || baseSession == nil {
+		slog.ErrorContext(ctx, "failed to retrieve session",
+			slog.String(logging.FieldSessionID, sessionID),
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Any(logging.FieldError, sErr),
+		)
+		errMsg = fmt.Sprintf("could not find session %s for request %s", sessionID, request.ID)
 	} else {
-		_ = r.requestorStore.CompleteRequest(ctx, session, request)
+		_ = r.requestorStore.CompleteRequest(ctx, baseSession, request)
 	}
 
 	payload, _ := json.Marshal(errMsg)
-	_ = r.broadcastStore.Broadcast(ctx, session.GetID(), &message.Message{
+	_ = r.broadcastStore.Broadcast(ctx, sessionID, &message.Message{
 		Event:   message.ErrorEvent,
 		Payload: payload,
 	})
@@ -422,35 +423,35 @@ func (r *Requestor) sendRequest(
 ) error {
 	req, crErr := http.NewRequestWithContext(ctx, http.MethodPost, request.Endpoint, strings.NewReader(request.Body))
 	if crErr != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldRequestID: request.ID,
-			logging.FieldError:     crErr,
-		}).Error("failed to create HTTP request")
+		slog.ErrorContext(ctx, "failed to create HTTP request",
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Any(logging.FieldError, crErr),
+		)
 		return callback.ErrInvalidRequest
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, hErr := r.httpClient.Do(req)
 	if hErr != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldRequestID: request.ID,
-			logging.FieldError:     hErr,
-		}).Error("failed to perform HTTP request")
+		slog.ErrorContext(ctx, "failed to perform HTTP request",
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Any(logging.FieldError, hErr),
+		)
 		return callback.ErrTransportFailure
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldRequestID: request.ID,
-			"status_code":          resp.StatusCode,
-		}).Error("request not accepted")
+		slog.ErrorContext(ctx, "request not accepted",
+			slog.String(logging.FieldRequestID, request.ID),
+			slog.Int("status_code", resp.StatusCode),
+		)
 		return callback.ErrNotAccepted
 	}
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldRequestID: request.ID,
-	}).Debug("request sent successfully")
+	slog.DebugContext(ctx, "request sent successfully",
+		slog.String(logging.FieldRequestID, request.ID),
+	)
 	return nil
 }
 

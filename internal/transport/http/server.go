@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
@@ -47,14 +47,14 @@ func NewServer(
 // Start starts the echo server.
 func (s *Server) Start() {
 	go func() {
-		logrus.WithFields(logrus.Fields{
-			"address": s.Address,
-		}).Info("starting server")
+		slog.Info("starting server",
+			slog.String("address", s.Address),
+		)
 		if err := s.Server.Start(s.Address); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logrus.WithFields(logrus.Fields{
-				"address":          s.Address,
-				logging.FieldError: err,
-			}).Error("failed to start server")
+			slog.Error("failed to start server",
+				slog.String("address", s.Address),
+				slog.Any(logging.FieldError, err),
+			)
 		}
 	}()
 }
@@ -65,14 +65,14 @@ func (s *Server) Stop() {
 		return
 	}
 
-	logrus.Info("shutting down server")
+	slog.Info("shutting down server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
 	if err := s.Server.Shutdown(ctx); err != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldError: err,
-		}).Error("failed to shutdown server")
+		slog.ErrorContext(ctx, "failed to shutdown server",
+			slog.Any(logging.FieldError, err),
+		)
 	}
 }

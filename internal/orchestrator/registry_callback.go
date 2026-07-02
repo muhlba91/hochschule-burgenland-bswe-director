@@ -3,8 +3,7 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/session"
@@ -28,11 +27,11 @@ func (r *Registry) HandleCallback(
 		return requestHandler(ctx, payload, session, request)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldAction:    request.Action,
-		logging.FieldSessionID: session.GetID(),
-		logging.FieldRequestID: request.ID,
-	}).Info("no callback handler registered")
+	slog.InfoContext(ctx, "no callback handler registered",
+		slog.String(logging.FieldAction, request.Action),
+		slog.String(logging.FieldSessionID, session.GetID()),
+		slog.String(logging.FieldRequestID, request.ID),
+	)
 	return response.ErrNoMatchingRequest
 }
 
@@ -49,12 +48,12 @@ func RegisterCallbackHandler[T any](
 	registry.callbackHandlers[action] = func(ctx context.Context, raw json.RawMessage, session session.Session, request *callback.Request) error {
 		var payload T
 		if err := json.Unmarshal(raw, &payload); err != nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldAction:    request.Action,
-				logging.FieldSessionID: session.GetID(),
-				logging.FieldRequestID: request.ID,
-				logging.FieldError:     err,
-			}).Error("failed to unmarshal callback payload")
+			slog.ErrorContext(ctx, "failed to unmarshal callback payload",
+				slog.String(logging.FieldAction, request.Action),
+				slog.String(logging.FieldSessionID, session.GetID()),
+				slog.String(logging.FieldRequestID, request.ID),
+				slog.Any(logging.FieldError, err),
+			)
 			return response.ErrInvalidPayload
 		}
 

@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/sirupsen/logrus"
+	"log/slog"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
@@ -23,10 +22,10 @@ const maxBatchSize = 100
 // data: The data to be stored in the session.
 func (c *Cache) CreateSession(ctx context.Context, sessionID string, data any) error {
 	if err := c.Set(ctx, sessionID, data, constants.DefaultSessionExpiration); err != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: sessionID,
-			logging.FieldError:     err,
-		}).Error("failed to save session")
+		slog.ErrorContext(ctx, "failed to save session",
+			slog.String(logging.FieldSessionID, sessionID),
+			slog.Any(logging.FieldError, err),
+		)
 		return err
 	}
 
@@ -38,7 +37,9 @@ func (c *Cache) CreateSession(ctx context.Context, sessionID string, data any) e
 // sessionID: The unique session ID for the existing session.
 // data: The data to be stored in the session.
 func (c *Cache) UpdateSession(ctx context.Context, sessionID string, data any) error {
-	logrus.Debugf("updating session with ID: %s", sessionID)
+	slog.DebugContext(ctx, "updating session",
+		slog.String(logging.FieldSessionID, sessionID),
+	)
 	return c.CreateSession(ctx, sessionID, data)
 }
 
@@ -57,10 +58,10 @@ func (c *Cache) ListSessions(ctx context.Context, flowName string) map[string]st
 		var err error
 		batch, cursor, err = c.client.Scan(ctx, cursor, pattern, maxBatchSize).Result()
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldFlowName: flowName,
-				logging.FieldError:    err,
-			}).Error("failed to scan session keys")
+			slog.ErrorContext(ctx, "failed to scan session keys",
+				slog.String(logging.FieldFlowName, flowName),
+				slog.Any(logging.FieldError, err),
+			)
 			return sessions
 		}
 
@@ -81,10 +82,10 @@ func (c *Cache) ListSessions(ctx context.Context, flowName string) map[string]st
 		batchKeys := keys[i:end]
 		vals, err := c.client.MGet(ctx, batchKeys...).Result()
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldFlowName: flowName,
-				logging.FieldError:    err,
-			}).Error("failed to retrieve session data")
+			slog.ErrorContext(ctx, "failed to retrieve session data",
+				slog.String(logging.FieldFlowName, flowName),
+				slog.Any(logging.FieldError, err),
+			)
 			continue
 		}
 
@@ -97,7 +98,10 @@ func (c *Cache) ListSessions(ctx context.Context, flowName string) map[string]st
 		}
 	}
 
-	logrus.Debugf("retrieved sessions for flow %s: %v", flowName, sessions)
+	slog.DebugContext(ctx, "retrieved sessions for flow",
+		slog.String(logging.FieldFlowName, flowName),
+		slog.Any("sessions", sessions),
+	)
 
 	return sessions
 }
@@ -115,17 +119,19 @@ func (c *Cache) GetSession(ctx context.Context, sessionID string) (*string, erro
 func (c *Cache) GetBaseSession(ctx context.Context, sessionID string) (session.Session, error) {
 	sess, sErr := c.GetSession(ctx, sessionID)
 	if sErr != nil || sess == nil {
-		logrus.Debugf("session not found: %s", sessionID)
+		slog.DebugContext(ctx, "session not found",
+			slog.String(logging.FieldSessionID, sessionID),
+		)
 		return nil, transport.ErrNoMatchingSession
 	}
 
 	var session session.Base
 	usErr := json.Unmarshal([]byte(*sess), &session)
 	if usErr != nil {
-		logrus.WithFields(logrus.Fields{
-			logging.FieldSessionID: sessionID,
-			logging.FieldError:     usErr,
-		}).Error("failed to unmarshal session")
+		slog.ErrorContext(ctx, "failed to unmarshal session",
+			slog.String(logging.FieldSessionID, sessionID),
+			slog.Any(logging.FieldError, usErr),
+		)
 		return nil, transport.ErrNoMatchingSession
 	}
 

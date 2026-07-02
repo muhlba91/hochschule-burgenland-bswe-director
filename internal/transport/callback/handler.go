@@ -3,10 +3,10 @@ package callback
 import (
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/orchestrator"
@@ -20,25 +20,25 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 		ctx := c.Request().Context()
 		requestID := c.Param("requestId")
 
-		logrus.WithFields(logrus.Fields{
-			"path":                 c.Request().URL.Path,
-			logging.FieldRequestID: requestID,
-		}).Debug("received callback request")
+		slog.DebugContext(ctx, "received callback request",
+			slog.String("path", c.Request().URL.Path),
+			slog.String(logging.FieldRequestID, requestID),
+		)
 
 		defer c.Request().Body.Close()
 		data, bErr := io.ReadAll(c.Request().Body)
 		if bErr != nil {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldRequestID: requestID,
-				logging.FieldError:     bErr,
-			}).Error("failed to read callback request body")
+			slog.ErrorContext(ctx, "failed to read callback request body",
+				slog.String(logging.FieldRequestID, requestID),
+				slog.Any(logging.FieldError, bErr),
+			)
 			return echo.NewHTTPError(http.StatusBadRequest, response.NewError(response.ErrInvalidPayload))
 		}
 		body := json.RawMessage(data)
-		logrus.WithFields(logrus.Fields{
-			logging.FieldRequestID: requestID,
-			"body":                 string(body),
-		}).Debug("callback request body")
+		slog.DebugContext(ctx, "callback request body",
+			slog.String(logging.FieldRequestID, requestID),
+			slog.String("body", string(body)),
+		)
 
 		return dispatcher.HandleCallback(ctx, c, requestID, body)
 	}

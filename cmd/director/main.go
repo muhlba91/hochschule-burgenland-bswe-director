@@ -1,11 +1,10 @@
 package main
 
 import (
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
@@ -28,10 +27,10 @@ var (
 func main() {
 	logging.Init()
 
-	logrus.WithFields(logrus.Fields{
-		"version": Version,
-		"gitsha":  Gitsha,
-	}).Info("application starting")
+	slog.Info("application starting",
+		slog.String("version", Version),
+		slog.String("gitsha", Gitsha),
+	)
 
 	cfg := configuration.Init()
 
@@ -52,7 +51,7 @@ func main() {
 	signal.Notify(sig, syscall.SIGTERM)
 
 	<-sig
-	logrus.Info("shutting down...")
+	slog.Info("shutting down...")
 	healthServer.Stop()
 	httpServer.Stop()
 	c.Stop()

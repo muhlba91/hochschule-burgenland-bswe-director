@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
-	"github.com/sirupsen/logrus"
-
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	globalStore "github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/store/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/state"
@@ -52,7 +52,7 @@ func (s *Store) GetState(ctx context.Context, sessionID string) (*state.State, e
 
 	var state state.State
 	if sErr := json.Unmarshal([]byte(*stateData), &state); sErr != nil {
-		logrus.Debugf("error occurred while unmarshaling state: %v", sErr)
+		slog.DebugContext(ctx, "error occurred while unmarshaling state", slog.Any(logging.FieldError, sErr))
 		return nil, sErr
 	}
 

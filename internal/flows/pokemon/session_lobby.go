@@ -3,9 +3,9 @@ package pokemon
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/event"
@@ -41,11 +41,11 @@ func (gp *Gameplay) Create(ctx context.Context, create *event.Create, _ *connect
 		})
 	}
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldSessionID: sessionID,
-		logging.FieldEvent:     msgEvent,
-		logging.FieldPayload:   string(payload),
-	}).Debug("create session response")
+	slog.DebugContext(ctx, "create session response",
+		slog.String(logging.FieldSessionID, sessionID),
+		slog.String(logging.FieldEvent, msgEvent),
+		slog.String(logging.FieldPayload, string(payload)),
+	)
 
 	return nil, &message.Message{
 		Event:   msgEvent,
@@ -64,9 +64,9 @@ func (gp *Gameplay) List(ctx context.Context, _ *event.List, _ *connection.Data)
 		Sessions: sessions,
 	})
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldPayload: string(payload),
-	}).Debug("list sessions response")
+	slog.DebugContext(ctx, "list sessions response",
+		slog.String(logging.FieldPayload, string(payload)),
+	)
 
 	return &message.Message{
 		Event:   gp.generateEventName(event.TypeListing),
@@ -104,11 +104,11 @@ func (gp *Gameplay) Join(
 	default:
 		connected := false
 		if player, ok := session.Players[join.Player]; ok && !player.Connected {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldPlayerID:     player.ID,
-				logging.FieldSessionID:    *sid,
-				logging.FieldConnectionID: connectionData.ConnectionID,
-			}).Debug("player is joining the session")
+			slog.DebugContext(ctx, "player is joining the session",
+				slog.String(logging.FieldPlayerID, player.ID),
+				slog.String(logging.FieldSessionID, *sid),
+				slog.String(logging.FieldConnectionID, connectionData.ConnectionID),
+			)
 			player.Connected = true
 			player.ConnectionID = &connectionData.ConnectionID
 			connectionData.InternalID = &player.ID
@@ -116,10 +116,10 @@ func (gp *Gameplay) Join(
 		}
 
 		if !connected {
-			logrus.WithFields(logrus.Fields{
-				logging.FieldPlayerID:  join.Player,
-				logging.FieldSessionID: *sid,
-			}).Debug("player is not a valid player for session")
+			slog.DebugContext(ctx, "player is not a valid player for session",
+				slog.String(logging.FieldPlayerID, join.Player),
+				slog.String(logging.FieldSessionID, *sid),
+			)
 			break
 		}
 
@@ -134,11 +134,11 @@ func (gp *Gameplay) Join(
 		}
 	}
 
-	logrus.WithFields(logrus.Fields{
-		logging.FieldSessionID: *sid,
-		logging.FieldEvent:     msgEvent,
-		logging.FieldPayload:   string(payload),
-	}).Debug("join session response")
+	slog.DebugContext(ctx, "join session response",
+		slog.String(logging.FieldSessionID, *sid),
+		slog.String(logging.FieldEvent, msgEvent),
+		slog.String(logging.FieldPayload, string(payload)),
+	)
 
 	return sid, &message.Message{
 		Event:   msgEvent,

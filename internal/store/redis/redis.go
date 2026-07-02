@@ -2,13 +2,14 @@ package redis
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/go-redsync/redsync/v4"
 	"github.com/go-redsync/redsync/v4/redis/goredis/v9"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
+	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 )
 
 // Cache represents the redis cache.
@@ -41,8 +42,8 @@ func (c *Cache) Stop() {
 		return
 	}
 
-	logrus.Info("shutting down cache")
+	slog.Info("shutting down cache")
 	if err := c.client.Close(); err != nil {
-		logrus.Errorf("failed to shutdown cache: %v", err)
+		slog.Error("failed to shutdown cache", slog.Any(logging.FieldError, err))
 	}
 }

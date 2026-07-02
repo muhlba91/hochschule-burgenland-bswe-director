@@ -1,11 +1,11 @@
 package http
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/sirupsen/logrus"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/transport/callback"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/transport/websocket"
@@ -33,14 +33,14 @@ func configureServer(http *Server) {
 		LogURI:    true,
 		LogMethod: true,
 		LogError:  true,
-		LogValuesFunc: func(_ echo.Context, v middleware.RequestLoggerValues) error {
-			logrus.WithFields(logrus.Fields{
-				"time":   v.StartTime.Format(time.RFC3339),
-				"method": v.Method,
-				"uri":    v.URI,
-				"status": v.Status,
-				"error":  v.Error,
-			}).Debug("request")
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			slog.DebugContext(c.Request().Context(), "request",
+				slog.String("time", v.StartTime.Format(time.RFC3339)),
+				slog.String("method", v.Method),
+				slog.String("uri", v.URI),
+				slog.Int("status", v.Status),
+				slog.Any("error", v.Error),
+			)
 
 			return nil
 		},
