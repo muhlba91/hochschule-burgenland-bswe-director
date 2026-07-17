@@ -46,12 +46,12 @@ When the Director calls a Flow Agent (e.g., to ask for a move), it needs to ensu
 ### Director -> Engine (Outgoing Request)
 
 * The Director sends an HTTP POST to the Engine's endpoint.
-* If `CallbackAuthEnabled` is true, the Director generates a unique **Secret** for **that specific request**.
+* The Director generates a unique **Secret** for **every specific request**.
 * This secret is sent in the HTTP Header: `X-Callback-Secret`.
 
 ### Engine -> Director (Incoming Callback Response)
 
-To respond to a request, the Engine must sign the response body using the provided secret:
+To respond to a request, the Engine should sign the response body using the provided secret. Note that the Director only verifies the signature if `CallbackAuthEnabled` is true.
 
 1. **POST** the response to the `callbackURL` provided in the request body.
 2. **Generate a Signature**: Create an HMAC-SHA256 hash of the **raw response body** using the `X-Callback-Secret` as the key.

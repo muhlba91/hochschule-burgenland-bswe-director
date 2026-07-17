@@ -108,7 +108,7 @@ func (d *Dispatcher) HandleCallback(
 		return echo.NewHTTPError(http.StatusConflict, response.NewError(response.ErrCallbackNotExpected))
 	}
 
-	if d.configuration.CallbackAuthEnabled && request.Secret != "" {
+	if d.configuration.CallbackAuthEnabled {
 		sigHeader := echoCtx.Request().Header.Get("X-Signature")
 		if sigHeader == "" {
 			slog.InfoContext(ctx, "missing callback signature",
