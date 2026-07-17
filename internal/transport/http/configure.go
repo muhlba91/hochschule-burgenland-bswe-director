@@ -22,9 +22,22 @@ func configureRoutes(
 	http *Server,
 	configuration *configuration.Data,
 ) {
-	http.Server.POST("/auth/token", auth.Handler(configuration))
-	http.Server.GET("/ws", websocket.Handler(http.Dispatcher), authMiddleware(configuration))
-	http.Server.POST("/callback/:requestId", callback.Handler(http.Dispatcher))
+	v1 := http.Server.Group("/api/v1")
+	registerV1Routes(v1, http, configuration)
+}
+
+// registerV1Routes registers the routes for the v1 API group.
+// group: The echo group for the v1 API.
+// http: The echo server to configure.
+// configuration: The configuration data for the server.
+func registerV1Routes(
+	group *echo.Group,
+	http *Server,
+	configuration *configuration.Data,
+) {
+	group.POST("/auth/token", auth.Handler(configuration))
+	group.GET("/ws", websocket.Handler(http.Dispatcher), authMiddleware(configuration))
+	group.POST("/callback/:requestId", callback.Handler(http.Dispatcher))
 }
 
 // configureServer configures the echo server with middleware and settings.

@@ -4,6 +4,13 @@ info:
   title: Flow Director API
   version: 1.0.0
   description: Generic high-concurrency state-machine flow orchestrator.
+servers:
+  - url: /api/{version}
+    variables:
+      version:
+        default: v1
+        enum:
+          - v1
 paths:
   /auth/token:
     post:

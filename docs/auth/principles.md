@@ -23,7 +23,7 @@ The WebSocket connection requires a JWT for authentication. Since the frontends 
    The `apiKey` is an HMAC-SHA256 hash of the `clientID` using the **Team Secret** as the key.
    $$apiKey = HMAC-SHA256(TeamSecret, clientID)$$
 3. **Token Exchange:**
-   The client sends a POST request to `/auth/token` with:
+   The client sends a POST request to `/api/v1/auth/token` with:
 
    ```json
    {

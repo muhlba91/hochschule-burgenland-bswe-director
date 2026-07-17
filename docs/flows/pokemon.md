@@ -26,7 +26,7 @@ Path: `pkg/flows/pokemon/event/`
 
 ## Callback Actions (Director <-> Agent)
 
-The Flow Director coordinates gameplay actions asynchronously by posting payload structures to each player's service URL, expecting replies on a unique `/callback/:requestId` endpoint.
+The Flow Director coordinates gameplay actions asynchronously by posting payload structures to each player's service URL, expecting replies on a unique `/api/v1/callback/:requestId` endpoint.
 
 Path: `pkg/flows/pokemon/action/`
 

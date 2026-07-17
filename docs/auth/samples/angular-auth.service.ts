@@ -22,7 +22,7 @@ export class AuthService {
    * If the student only has the secret, they must generate the HMAC SHA256 first (see principles.md).
    */
   exchangeToken(clientID: string, apiKey: string): Observable<any> {
-    return this.http.post(`${this.directorUrl}/auth/token`, {
+    return this.http.post(`${this.directorUrl}/api/v1/auth/token`, {
       clientID: clientID,
       apiKey: apiKey
     }).pipe(
@@ -39,6 +39,6 @@ export class AuthService {
    * The Director currently expects it via the specific protocol handling or header if supported by the client.
    */
   getWebSocketUrl(): string {
-    return `ws://localhost:8080/ws?token=${this.token}`;
+    return `ws://localhost:8080/api/v1/ws?token=${this.token}`;
   }
 }
