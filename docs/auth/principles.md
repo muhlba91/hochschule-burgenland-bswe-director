@@ -1,6 +1,6 @@
 # Authentication Principles
 
-This document describes the authentication mechanisms used in the Game Director to ensure secure communication between the Director, Game Engines (Clients), and the Frontend.
+This document describes the authentication mechanisms used in the Flow Director to ensure secure communication between the Director, Agents (Clients), and the Frontend.
 
 ## Overview
 
@@ -18,7 +18,7 @@ The WebSocket connection requires a JWT for authentication. Since the frontends 
 
 ### The Handshake
 
-1. **Client ID & Team Secret:** Every student team/game engine has a unique `clientID` and a long-lived **Team Secret** provided by the instructor.
+1. **Client ID & Team Secret:** Every student team/flow agent has a unique `clientID` and a long-lived **Team Secret** provided by the instructor.
 2. **API Key Generation (HMAC):**
    The `apiKey` is an HMAC-SHA256 hash of the `clientID` using the **Team Secret** as the key.
    $$apiKey = HMAC-SHA256(TeamSecret, clientID)$$
@@ -41,7 +41,7 @@ The WebSocket connection requires a JWT for authentication. Since the frontends 
 
 ## 2. Callback Authentication (HMAC & Secrets)
 
-When the Director calls a Game Engine (e.g., to ask for a move), it needs to ensure only the authorized engine responds, and the engine needs to ensure the request came from the Director.
+When the Director calls a Flow Agent (e.g., to ask for a move), it needs to ensure only the authorized agent responds, and the agent needs to ensure the request came from the Director.
 
 ### Director -> Engine (Outgoing Request)
 

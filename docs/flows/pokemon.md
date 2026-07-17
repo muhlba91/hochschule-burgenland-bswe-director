@@ -1,4 +1,4 @@
-# Pokémon Flow Events & Actions
+# Pokémon Game Events & Actions
 
 This document outlines the WebSocket events and HTTP callback actions implemented for the turn-based Pokémon card game flow.
 
@@ -16,9 +16,9 @@ Path: `pkg/flows/pokemon/event/`
 
 - **`pokemon:join`**: Dispatched by a player to bind their WebSocket connection to an active game lobby. Responds with **`pokemon:joined`** upon successful lobby registration.
 
-- **`pokemon:list`**: Queries all active game sessions in the Redis store. Responds with **`pokemon:listing`** containing a dictionary of current game sessions.
+- **`pokemon:list`**: Queries all active game sessions in the Redis store. Responds with **`pokemon:listing`** containing a dictionary of current sessions.
 
-- **`pokemon:state`**: Requests a comprehensive snapshot of the game board. Responds with **`pokemon:current_state`** containing the active board details.
+- **`pokemon:state`**: Requests a comprehensive snapshot of the game state. Responds with **`pokemon:current_state`** containing the active state details.
 
 - **`pokemon:player_information`**: Queries player connection metadata and cards. Responds with **`pokemon:player_details`** including player-specific filtered card views and connection information.
 
@@ -26,7 +26,7 @@ Path: `pkg/flows/pokemon/event/`
 
 ## Callback Actions (Director <-> Agent)
 
-The Flow Director coordinates gameplay actions asynchronously by posting payload structures to each player's service URL, expecting replies on a unique `/api/v1/callback/:requestId` endpoint.
+The Flow Director coordinates actions asynchronously by posting payload structures to each player's service URL, expecting replies on a unique `/api/v1/callback/:requestId` endpoint.
 
 Path: `pkg/flows/pokemon/action/`
 

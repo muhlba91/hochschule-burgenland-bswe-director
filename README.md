@@ -27,7 +27,7 @@ The director processes two major categories of communication to coordinate activ
 
 #### WebSocket Messages (Client <-> Director)
 
-Clients, frontends, or game-boards connect via the WebSocket endpoint.
+Clients connect via the WebSocket endpoint.
 
 - **Inbound (Client to Director)**: Used for session administration, including creating lobbies, joining sessions, querying session directories, or manual state retrieval.
 - **Outbound (Director to Client)**: Broadcasts updated, real-time board states, connection events, or winner declarations to all active connections in a session whenever data transitions.
@@ -36,7 +36,7 @@ Clients, frontends, or game-boards connect via the WebSocket endpoint.
 
 Communication with player or automated agent microservices occurs asynchronously via HTTP.
 
-- **Outgoing Request (Director to Agent)**: When the state machine requires an action (e.g., turn decision, startup config, game moves), the **Requestor** dispatches a POST request containing the current filtered session state and a unique callback URL: `<BASE_URL>/callback/<requestId>`.
+- **Outgoing Request (Director to Agent)**: When the state machine requires an action (e.g., flow actions), the **Requestor** dispatches a POST request containing the current filtered session state and a unique callback URL: `<BASE_URL>/callback/<requestId>`.
 - **Inbound Callback (Agent to Director)**: Once the agent determines its choice, it posts the result back to the unique callback route, prompting the dispatcher to lock, apply, and broadcast the transaction.
 
 ---
@@ -45,9 +45,9 @@ Communication with player or automated agent microservices occurs asynchronously
 
 The director is designed to be easily extensible. 
 
-### Pokémon Battle Flow
+### Pokémon Game Flow
 
-The director supports a turn-based Pokémon card game flow. It registers flow logic to handle:
+The director supports a turn-based Pokémon card game flow. It registers game logic to handle:
 
 - **Session Initialization**: Automatically provisions player decks, HP trackers, and energy cards.
 - **Sequential Turn Coordination**: Coordinates player hand state filtering and sequential decision-making requests.
@@ -101,13 +101,24 @@ Run the Director:
 
 ```shell
 docker run -d \
-  --name game-director \
+  --name director \
   -p 8888:8888 \
   -p 8080:8080 \
   -e REDIS_HOST="host.docker.internal" \
   -e BASE_URL="http://localhost:8888" \
   ghcr.io/muhlba91/hochschule-burgenland-bswe-director:latest
 ```
+
+---
+
+## Documentation
+
+Comprehensive documentation for the project is located in the [`docs/`](docs/) directory:
+
+- **[API Specification](docs/openapi.yaml)**: OpenAPI/Swagger definition of the Director's HTTP endpoints.
+- **[WebSocket Events](docs/generic-websocket-events.md)**: Details on the generic events transmitted over the WebSocket connection.
+- **[Authentication](docs/auth/principles.md)**: Principles and implementation details for securing communications, including [Angular](docs/auth/samples/angular-auth.service.ts) and [Java](docs/auth/samples/FlowCallbackController.java) samples.
+- **[Flows](docs/flows/)**: Detailed documentation for supported flows, such as the [Pokémon Game Flow](docs/flows/pokemon.md).
 
 ---
 

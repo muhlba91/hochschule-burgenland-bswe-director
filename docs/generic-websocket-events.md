@@ -33,7 +33,7 @@ Path: `pkg/transport/websocket/connection/data.go`
 
 - **`connection_id`**: A unique UUID string generated upon accepting the WebSocket connection.
 
-- **`session_id`**: An optional string identifying the game or flow session associated with the connection.
+- **`session_id`**: An optional string identifying the flow session associated with the connection.
 
 - **`internal_id`**: An optional internal string identifying the specific player representation within the session.
 

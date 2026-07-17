@@ -92,7 +92,30 @@ jobs:
           COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
-  dockerfile_lint:
+  spectral:
+    runs-on: ubuntu-latest
+    name: Spectral Linter
+
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - uses: jaxxstorm/action-install-gh-release@25e24d2d23ae098373794ef1d6faecb48ee52da8 # v3.0.0
+        with:
+          repo: stoplightio/spectral
+          extension-matching: disable
+          rename-to: spectral
+          chmod: 0755
+
+      - run: |
+          spectral lint 'docs/**/*.{yaml,yml}' --fail-severity info
+
+  hadolint:
     runs-on: ubuntu-latest
     name: Lint Dockerfile
 
@@ -114,7 +137,8 @@ jobs:
     name: Build Director and Container
     needs:
       - lint
-      - dockerfile_lint
+      - spectral
+      - hadolint
       - test
     permissions:
       contents: read

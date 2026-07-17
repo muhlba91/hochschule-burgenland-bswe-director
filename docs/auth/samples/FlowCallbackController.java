@@ -9,7 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.util.HexFormat;
 
 /**
- * Example Spring Boot Controller handling the Game Director callback and
+ * Example Spring Boot Controller handling the Flow Director callback and
  * Authentication.
  * 
  * This sample shows:
@@ -19,8 +19,8 @@ import java.util.HexFormat;
  * 4. Sending a response back to the 'callbackURL' including the 'X-Signature'.
  */
 @RestController
-@RequestMapping("/api/game")
-public class GameCallbackController {
+@RequestMapping("/api/flow")
+public class FlowCallbackController {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
