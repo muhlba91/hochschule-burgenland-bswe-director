@@ -22,7 +22,7 @@ func configureRoutes(
 	http *Server,
 	configuration *configuration.Data,
 ) {
-	http.Server.POST("/token", auth.Handler(configuration))
+	http.Server.POST("/auth/token", auth.Handler(configuration))
 	http.Server.GET("/ws", websocket.Handler(http.Dispatcher), authMiddleware(configuration))
 	http.Server.POST("/callback/:requestId", callback.Handler(http.Dispatcher))
 }

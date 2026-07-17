@@ -5,7 +5,7 @@ info:
   version: 1.0.0
   description: Generic high-concurrency state-machine flow orchestrator.
 paths:
-  /token:
+  /auth/token:
     post:
       summary: Exchange API Key for JWT
       description: Clients provide their `clientID` and deterministic `apiKey` to receive a short-lived JWT for subsequent WebSocket authentication.
