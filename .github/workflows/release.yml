@@ -10,6 +10,10 @@ permissions:
   contents: read
   pull-requests: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -17,6 +21,7 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      paths_released: ${{ steps.release.outputs.paths_released }}
     permissions:
       contents: write
       pull-requests: write
@@ -30,7 +35,7 @@ jobs:
         id: release
 
   director:
-    if: needs.release.outputs.release_created
+    if: needs.release.outputs.release_created && contains(fromJson(needs.release.outputs.paths_released), '.')
     runs-on: ubuntu-latest
     name: Publish Director
     permissions:
@@ -102,3 +107,44 @@ jobs:
             dist/*.sbom.json
             dist/*_checksums.txt
             dist/*.sigstore.json
+
+  helm:
+    if: needs.release.outputs.release_created && contains(fromJson(needs.release.outputs.paths_released), 'charts/director')
+    runs-on: ubuntu-latest
+    name: Publish Helm Chart
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    needs:
+      - release
+
+    steps:
+      - uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: latest
+
+      - run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - id: package
+        run: |
+          helm package charts/director
+          CHART_PACKAGE=$(ls director-*.tgz)
+
+          PUSH_OUTPUT=$(helm push "$CHART_PACKAGE" oci://ghcr.io/muhlba91/hochschule-burgenland-bswe-director-charts 2>&1 | tee /dev/stderr)
+          DIGEST=$(echo "$PUSH_OUTPUT" | grep -oP 'Digest: \K.*')
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-name: ghcr.io/muhlba91/hochschule-burgenland-bswe-director-charts/director
+          subject-digest: ${{ steps.package.outputs.digest }}
+          push-to-registry: true

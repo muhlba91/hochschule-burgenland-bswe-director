@@ -91,7 +91,12 @@ make coverage    # Generate code coverage reports
 
 ### Deployment
 
-Run a local Redis container:
+#### Docker
+
+Run a local Redis (or Valkey) container:
+
+> [!IMPORTANT]
+> The Director requires **Redis 7.0+** or **Valkey 7.0+** for distributed locking and state management features.
 
 ```shell
 docker run -d --name redis -p 6379:6379 redis:7-alpine
@@ -107,6 +112,56 @@ docker run -d \
   -e REDIS_HOST="host.docker.internal" \
   -e BASE_URL="http://localhost:8888" \
   ghcr.io/muhlba91/hochschule-burgenland-bswe-director:latest
+```
+
+#### Helm
+
+The Helm chart is located in the [`charts/director/`](charts/director/) folder and is hosted in the GitHub Container Registry (GHCR).
+
+```bash
+helm upgrade --install director oci://ghcr.io/muhlba91/hochschule-burgenland-bswe-director-charts/director
+```
+
+The chart supports both standard Kubernetes Ingress and the Gateway API (`HTTPRoute` & `ListenerSet`).
+
+> [!IMPORTANT]
+> This chart requires an external Redis or Valkey instance. You can provide connection details via `values.yaml` or an existing secret.
+
+##### Ingress
+
+Enable ingress in `values.yaml`:
+
+```yaml
+ingress:
+  enabled: true
+  className: "traefik"
+  hosts:
+    - host: director.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+```
+
+##### Gateway API
+
+Enable Gateway API support in `values.yaml`:
+
+```yaml
+gateway:
+  enabled: true
+  gatewayClassName: "my-gateway"
+  hosts:
+    - host: director.example.com
+      path: /
+  listenerSet:
+    enabled: true
+    listeners:
+      - name: http
+        port: 80
+        protocol: HTTP
+        allowedRoutes:
+          namespaces:
+            from: Same
 ```
 
 ---

@@ -1,0 +1,14 @@
+{{- if and .Values.gateway.enabled .Values.gateway.listenerSet.enabled -}}
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ListenerSet
+metadata:
+  name: {{ include "director.fullname" . }}
+  labels:
+    {{- include "director.labels" . | nindent 4 }}
+spec:
+  parentRef:
+    name: {{ .Values.gateway.gatewayClassName }}
+    kind: Gateway
+  listeners:
+    {{- toYaml .Values.gateway.listenerSet.listeners | nindent 4 }}
+{{- end }}

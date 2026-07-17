@@ -1,0 +1,137 @@
+---
+# -- Number of replicas
+replicaCount: 1
+
+image:
+  # -- Image repository
+  repository: ghcr.io/muhlba91/hochschule-burgenland-bswe-director
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Image tag (defaults to .Chart.AppVersion if empty)
+  tag: ""
+
+# -- Image pull secrets
+imagePullSecrets: []
+# -- Override the name of the chart
+nameOverride: ""
+# -- Override the fullname of the chart
+fullnameOverride: ""
+
+# -- Extra environment variables
+extraEnv: []
+
+# -- Annotations for the pod
+podAnnotations: {}
+
+# -- Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+# -- Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# -- Resource limits and requests
+resources: {}
+
+livenessProbe:
+  # -- Liveness probe initial delay
+  initialDelaySeconds: 15
+  # -- Liveness probe period
+  periodSeconds: 20
+readinessProbe:
+  # -- Readiness probe initial delay
+  initialDelaySeconds: 5
+  # -- Readiness probe period
+  periodSeconds: 10
+startupProbe:
+  # -- Startup probe initial delay
+  initialDelaySeconds: 2
+  # -- Startup probe period
+  periodSeconds: 5
+  # -- Startup probe failure threshold
+  failureThreshold: 30
+
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 80
+  # -- IP family policy
+  ipFamilyPolicy: ""
+  # -- IP families
+  ipFamilies: []
+
+ingress:
+  # -- Enable ingress
+  enabled: false
+  # -- Ingress class name
+  className: ""
+  # -- Ingress annotations
+  annotations: {}
+  # -- Ingress hosts
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  # -- Ingress TLS configuration
+  tls: []
+
+gateway:
+  # -- Enable Gateway API support
+  enabled: false
+  # -- Gateway class name
+  gatewayClassName: ""
+  # -- Gateway hosts
+  hosts:
+    - host: chart-example.local
+      path: /
+  listenerSet:
+    # -- Enable listener set
+    enabled: false
+    # -- Listener configuration
+    listeners:
+      - name: http
+        port: 80
+        protocol: HTTP
+        allowedRoutes:
+          namespaces:
+            from: Same
+
+# -- Configuration for the Valkey/Redis instance
+config:
+  valkey:
+    # -- Valkey host
+    host: ""
+    # -- Valkey port
+    port: 6379
+    # -- Valkey password (ignored if existingSecret is set)
+    password: ""
+    # -- Existing secret containing Valkey configuration
+    existingSecret: ""
+    # -- Keys within the existing secret
+    existingSecretKeys:
+      # -- Key for Valkey host
+      host: host
+      # -- Key for Valkey port
+      port: port
+      # -- Key for Valkey password
+      password: password
+
+# -- Node selector for pod assignment
+nodeSelector: {}
+
+# -- Tolerations for pod assignment
+tolerations: []
+
+# -- Affinity for pod assignment
+affinity: {}

@@ -132,13 +132,34 @@ jobs:
         with:
           dockerfile: Dockerfile
 
+  helm:
+    runs-on: ubuntu-latest
+    name: Lint and Template Helm Chart
+    steps:
+      - uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: latest
+
+      - run: helm lint charts/director
+
+      - run: helm template director charts/director --debug
+
   build:
     runs-on: ubuntu-latest
     name: Build Director and Container
     needs:
+      - hadolint
+      - helm
       - lint
       - spectral
-      - hadolint
       - test
     permissions:
       contents: read

@@ -6,7 +6,18 @@
             "package-name": "main",
             "include-component-in-tag": false,
             "changelog-path": "CHANGELOG.md",
-            "extra-files": []
+            "extra-files": [
+                {
+                    "type": "yaml",
+                    "path": "charts/director/Chart.yaml",
+                    "jsonpath": "$.appVersion"
+                }
+            ]
+        },
+        "charts/director": {
+            "release-type": "helm",
+            "package-name": "chart",
+            "changelog-path": "CHANGELOG.md"
         }
     },
     "include-v-in-tag": true,

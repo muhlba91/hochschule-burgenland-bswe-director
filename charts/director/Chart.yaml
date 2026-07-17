@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: director
+description: A generic, high-concurrency orchestrator designed to bridge real-time clients and external microservices for state-machine flows.
+type: application
+version: 1.0.0
+appVersion: v1.0.0
