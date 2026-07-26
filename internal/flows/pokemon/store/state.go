@@ -88,7 +88,7 @@ func (w *Wrapper) ToCurrentStateForPlayer(
 				Active:      player.Active,
 				Bench:       player.Bench,
 				Hand:        len(player.Hand),
-				Deck:        []int{len(player.Deck)},
+				Deck:        len(player.Deck),
 				DiscardPile: player.DiscardPile,
 				PrizeCards:  len(player.PrizeCards),
 			}
@@ -112,7 +112,7 @@ func (w *Wrapper) ToGlobalState(gameState *state.State, session *session.Session
 			Active:      player.Active,
 			Bench:       player.Bench,
 			Hand:        len(player.Hand),
-			Deck:        []int{len(player.Deck)},
+			Deck:        len(player.Deck),
 			DiscardPile: player.DiscardPile,
 			PrizeCards:  len(player.PrizeCards),
 		}

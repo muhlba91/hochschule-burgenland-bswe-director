@@ -25,7 +25,7 @@ type Opponent struct {
 	// Hand is the number of cards in the player's hand.
 	Hand int `json:"hand" redis:"hand"`
 	// Deck is the number of cards in the player's deck. Can be empty.
-	Deck []int `json:"deck,omitempty" redis:"deck,omitempty"`
+	Deck int `json:"deck,omitempty" redis:"deck,omitempty"`
 	// DiscardPile is the list of cards in the player's discard pile.
 	DiscardPile []*Card `json:"discard_pile" redis:"discard_pile"`
 	// PrizeCards is the number of prize cards the player has.
