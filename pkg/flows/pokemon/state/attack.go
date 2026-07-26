@@ -4,6 +4,6 @@ package state
 type Attack struct {
 	// Name is the name of the attack used by the player.
 	Name string `json:"name"`
-	// Damage is the amount of damage dealt by the attack.
+	// Damage is the amount of damage dealt by the attack. -1 indicates the attack does not deal damage (e.g., status moves).
 	Damage int `json:"damage"`
 }
