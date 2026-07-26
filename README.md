@@ -5,8 +5,6 @@
 [![](https://img.shields.io/coverallsCoverage/github/muhlba91/hochschule-burgenland-bswe-director?style=for-the-badge)](https://github.com/muhlba91/hochschule-burgenland-bswe-director/)
 [![](https://api.scorecard.dev/projects/github.com/muhlba91/hochschule-burgenland-bswe-director/badge?style=for-the-badge)](https://scorecard.dev/viewer/?uri=github.com/muhlba91/hochschule-burgenland-bswe-director)
 [![](https://img.shields.io/github/release-date/muhlba91/hochschule-burgenland-bswe-director?style=for-the-badge)](https://github.com/muhlba91/hochschule-burgenland-bswe-director/releases)
-[![](https://img.shields.io/github/all-contributors/muhlba91/hochschule-burgenland-bswe-director?color=ee8449&style=for-the-badge)](#contributors)
-<a href="https://www.buymeacoffee.com/muhlba91" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="28" width="150"></a>
 
 **Flow Director** is a generic, high-concurrency Go-based service designed to orchestrate state-machine flows. It serves as a central middleware hub, bridging real-time clients (WebSockets) and external player/agent microservices (HTTP POST callbacks) using a highly modular registry.
 
