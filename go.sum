@@ -20,6 +20,8 @@ github.com/go-redis/redis/v8 v8.11.5 h1:AcZZR7igkdvfVmQTPnu9WE37LRrO/YrBH5zWyjDC
 github.com/go-redis/redis/v8 v8.11.5/go.mod h1:gREzHqY1hg6oD9ngVRbLStwAWKhA0FEgq8Jd4h5lpwo=
 github.com/go-redsync/redsync/v4 v4.17.0 h1:FFJ+uxZs44y4Sq10//IFKic9T94AYl+u3Sog98AHzBo=
 github.com/go-redsync/redsync/v4 v4.17.0/go.mod h1:CKVA6qwT07S/916i+Yd9h1/8YFQhCCpPYTQhvvYytJo=
+github.com/go-redsync/redsync/v4 v4.18.0 h1:DDM09PEhmNTf/vziolf2x6391y1hHxF5vQ4ytHl9xQc=
+github.com/go-redsync/redsync/v4 v4.18.0/go.mod h1:yuoqcQ55FS1VypSeVTMqFsJqTdWpEH5eA4MQGKJ9c4M=
 github.com/golang-jwt/jwt/v5 v5.3.1 h1:kYf81DTWFe7t+1VvL7eS+jKFVWaUnK9cB1qbwn63YCY=
 github.com/golang-jwt/jwt/v5 v5.3.1/go.mod h1:fxCRLWMO43lRc8nhHWY6LGqRcf+1gQWArsqaEUEa5bE=
 github.com/gomodule/redigo v1.9.3 h1:dNPSXeXv6HCq2jdyWfjgmhBdqnR6PRO3m/G05nvpPC8=
