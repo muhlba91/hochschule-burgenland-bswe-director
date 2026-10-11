@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/coder/websocket v1.8.15
-	github.com/go-redsync/redsync/v4 v4.17.0
+	github.com/go-redsync/redsync/v4 v4.18.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.15.4
