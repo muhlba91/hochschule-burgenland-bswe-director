@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
-
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/flows/pokemon/constants"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/flows/pokemon/action"
@@ -160,7 +158,7 @@ func (gp *Gameplay) StartCallback(
 ) error {
 	unlock, err := gp.store.LockSession(ctx, request.SessionID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusLocked, response.NewError(transport.ErrSessionLocked))
+		return response.NewHTTPError(http.StatusLocked, transport.ErrSessionLocked)
 	}
 	defer unlock(ctx)
 

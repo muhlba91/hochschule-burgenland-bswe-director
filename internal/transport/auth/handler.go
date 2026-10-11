@@ -3,7 +3,7 @@ package auth
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/pkg/transport/callback/response"
@@ -12,7 +12,7 @@ import (
 // Handler returns an echo handler for the token exchange endpoint.
 // cfg: The configuration data containing the auth secret and token TTL.
 func Handler(cfg *configuration.Data) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		type tokenReq struct {
 			ClientID string `json:"clientID"`
 			APIKey   string `json:"apiKey"`

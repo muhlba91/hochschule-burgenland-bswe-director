@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/orchestrator"
@@ -16,7 +16,7 @@ import (
 // Handler handles callback requests.
 // dispatcher: The dispatcher for handling management and flow actions.
 func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		ctx := c.Request().Context()
 		requestID := c.Param("requestId")
 
@@ -32,7 +32,7 @@ func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
 				slog.String(logging.FieldRequestID, requestID),
 				slog.Any(logging.FieldError, bErr),
 			)
-			return echo.NewHTTPError(http.StatusBadRequest, response.NewError(response.ErrInvalidPayload))
+			return response.NewHTTPError(http.StatusBadRequest, response.ErrInvalidPayload)
 		}
 
 		body := json.RawMessage(data)

@@ -6,9 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	"golang.org/x/time/rate"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/transport/auth"
@@ -44,13 +43,10 @@ func registerV1Routes(
 // http: The echo server to configure.
 // configuration: The configuration data for the server.
 func configureServer(http *Server, configuration *configuration.Data) {
-	http.Server.HideBanner = true
-	http.Server.HidePort = true
-
 	http.Server.Use(middleware.Recover())
 	http.Server.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStoreWithConfig(
 		middleware.RateLimiterMemoryStoreConfig{
-			Rate:      rate.Limit(configuration.RateLimit),
+			Rate:      float64(configuration.RateLimit),
 			Burst:     configuration.BurstLimit,
 			ExpiresIn: configuration.RateLimitWindow,
 		},
@@ -60,8 +56,7 @@ func configureServer(http *Server, configuration *configuration.Data) {
 		LogStatus: true,
 		LogURI:    true,
 		LogMethod: true,
-		LogError:  true,
-		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+		LogValuesFunc: func(c *echo.Context, v middleware.RequestLoggerValues) error {
 			slog.DebugContext(c.Request().Context(), "request",
 				slog.String("time", v.StartTime.Format(time.RFC3339)),
 				slog.String("method", v.Method),
@@ -79,7 +74,7 @@ func configureServer(http *Server, configuration *configuration.Data) {
 // cfg: The configuration data containing the auth secret and auth enabled flag.
 func authMiddleware(cfg *configuration.Data) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			if !cfg.AuthEnabled {
 				return next(c)
 			}

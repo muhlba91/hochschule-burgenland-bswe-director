@@ -10,7 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
@@ -78,7 +78,7 @@ func (d *Dispatcher) Subscribe(ctx context.Context, sessionID string) (store.Sub
 // body: The raw JSON payload of the callback.
 func (d *Dispatcher) HandleCallback(
 	ctx context.Context,
-	echoCtx echo.Context,
+	echoCtx *echo.Context,
 	requestID string,
 	body json.RawMessage,
 ) error {
@@ -88,7 +88,7 @@ func (d *Dispatcher) HandleCallback(
 			slog.String(logging.FieldRequestID, requestID),
 			slog.Any(logging.FieldError, rErr),
 		)
-		return echo.NewHTTPError(http.StatusGone, response.NewError(response.ErrNoMatchingRequest))
+		return response.NewHTTPError(http.StatusGone, response.ErrNoMatchingRequest)
 	}
 
 	session, sErr := d.sessionStore.GetBaseSession(ctx, request.SessionID)
@@ -97,7 +97,7 @@ func (d *Dispatcher) HandleCallback(
 			slog.String(logging.FieldSessionID, request.SessionID),
 			slog.Any(logging.FieldError, sErr),
 		)
-		return echo.NewHTTPError(http.StatusGone, response.NewError(transport.ErrNoMatchingSession))
+		return response.NewHTTPError(http.StatusGone, transport.ErrNoMatchingSession)
 	}
 
 	if request.Parallelization != 0 && !session.IsRequestExpected(requestID) {
@@ -105,7 +105,7 @@ func (d *Dispatcher) HandleCallback(
 			slog.String(logging.FieldRequestID, requestID),
 			slog.String(logging.FieldSessionID, request.SessionID),
 		)
-		return echo.NewHTTPError(http.StatusConflict, response.NewError(response.ErrCallbackNotExpected))
+		return response.NewHTTPError(http.StatusConflict, response.ErrCallbackNotExpected)
 	}
 
 	if d.configuration.CallbackAuthEnabled {
@@ -114,7 +114,7 @@ func (d *Dispatcher) HandleCallback(
 			slog.InfoContext(ctx, "missing callback signature",
 				slog.String(logging.FieldRequestID, requestID),
 			)
-			return echo.NewHTTPError(http.StatusUnauthorized, response.NewError(response.ErrCallbackNotAuthorized))
+			return response.NewHTTPError(http.StatusUnauthorized, response.ErrCallbackNotAuthorized)
 		}
 
 		mac := hmac.New(sha256.New, []byte(request.Secret))
@@ -125,7 +125,7 @@ func (d *Dispatcher) HandleCallback(
 			slog.InfoContext(ctx, "invalid callback signature",
 				slog.String(logging.FieldRequestID, requestID),
 			)
-			return echo.NewHTTPError(http.StatusUnauthorized, response.NewError(response.ErrCallbackNotAuthorized))
+			return response.NewHTTPError(http.StatusUnauthorized, response.ErrCallbackNotAuthorized)
 		}
 	}
 
@@ -136,13 +136,13 @@ func (d *Dispatcher) HandleCallback(
 			slog.String(logging.FieldSessionID, request.SessionID),
 			slog.Any(logging.FieldError, cErr),
 		)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.NewError(cErr))
+		return response.NewHTTPError(http.StatusInternalServerError, cErr)
 	}
 
 	// lock and reload session in case it was updated during callback handling
 	unlock, err := d.sessionStore.LockSession(ctx, request.SessionID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusLocked, response.NewError(transport.ErrSessionLocked))
+		return response.NewHTTPError(http.StatusLocked, transport.ErrSessionLocked)
 	}
 	defer unlock(ctx)
 
@@ -152,7 +152,7 @@ func (d *Dispatcher) HandleCallback(
 			slog.String(logging.FieldSessionID, request.SessionID),
 			slog.Any(logging.FieldError, sErr),
 		)
-		return echo.NewHTTPError(http.StatusGone, response.NewError(transport.ErrNoMatchingSession))
+		return response.NewHTTPError(http.StatusGone, transport.ErrNoMatchingSession)
 	}
 
 	uErr := d.requestStore.CompleteRequest(ctx, session, request)
@@ -162,7 +162,7 @@ func (d *Dispatcher) HandleCallback(
 			slog.String(logging.FieldSessionID, request.SessionID),
 			slog.Any(logging.FieldError, uErr),
 		)
-		return echo.NewHTTPError(http.StatusInternalServerError, response.NewError(response.ErrCompletionFailed))
+		return response.NewHTTPError(http.StatusInternalServerError, response.ErrCompletionFailed)
 	}
 
 	return echoCtx.NoContent(http.StatusOK)

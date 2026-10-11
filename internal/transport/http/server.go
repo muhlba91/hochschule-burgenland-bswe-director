@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/configuration"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
@@ -23,6 +23,9 @@ type Server struct {
 	Address    string
 	Server     *echo.Echo
 	Dispatcher *orchestrator.Dispatcher
+
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // NewServer creates a new echo server.
@@ -46,11 +49,22 @@ func NewServer(
 
 // Start starts the echo server.
 func (s *Server) Start() {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+	s.done = make(chan struct{})
+
 	go func() {
+		defer close(s.done)
 		slog.Info("starting server",
 			slog.String("address", s.Address),
 		)
-		if err := s.Server.Start(s.Address); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		sc := echo.StartConfig{
+			Address:         s.Address,
+			HideBanner:      true,
+			HidePort:        true,
+			GracefulTimeout: shutdownTimeout,
+		}
+		if err := sc.Start(ctx, s.Server); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("failed to start server",
 				slog.String("address", s.Address),
 				slog.Any(logging.FieldError, err),
@@ -70,9 +84,16 @@ func (s *Server) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	if err := s.Server.Shutdown(ctx); err != nil {
+	if s.cancel == nil {
+		return
+	}
+	s.cancel()
+
+	select {
+	case <-s.done:
+	case <-ctx.Done():
 		slog.ErrorContext(ctx, "failed to shutdown server",
-			slog.Any(logging.FieldError, err),
+			slog.Any(logging.FieldError, ctx.Err()),
 		)
 	}
 }

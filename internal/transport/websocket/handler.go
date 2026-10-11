@@ -9,7 +9,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/app/logging"
 	"github.com/muhlba91/hochschule-burgenland-bswe-director/internal/orchestrator"
@@ -30,7 +30,7 @@ const pingTimeout = 5 * time.Second
 //
 //nolint:gocognit,funlen // handler is complex due to the nature of websocket handling.
 func Handler(dispatcher *orchestrator.Dispatcher) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		conn, err := websocket.Accept(c.Response(), c.Request(), &websocket.AcceptOptions{
 			InsecureSkipVerify: true,
 			OriginPatterns:     []string{"*"},
