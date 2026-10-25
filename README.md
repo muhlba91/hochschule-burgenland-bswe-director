@@ -77,6 +77,8 @@ The director supports a turn-based Pokémon card game flow. It registers game lo
 
 ### Development
 
+Tool versions (Go, golangci-lint, goreleaser, Helm, spectral) are managed with [mise](https://mise.jdx.dev): run `mise trust` and `mise install` once, then use the included commands.
+
 Build and test the application using the included commands:
 
 ```shell

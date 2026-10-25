@@ -214,3 +214,6 @@ coverage.html
 bin/
 venv/
 .esphome/
+
+# mise
+mise.local.toml
