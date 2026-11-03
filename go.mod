@@ -3,7 +3,7 @@ module github.com/muhlba91/hochschule-burgenland-bswe-director
 go 1.27.3
 
 require (
-	github.com/caarlos0/env/v11 v11.4.1
+	github.com/caarlos0/env/v11 v11.4.2
 	github.com/coder/websocket v1.8.15
 	github.com/go-redsync/redsync/v4 v4.18.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
