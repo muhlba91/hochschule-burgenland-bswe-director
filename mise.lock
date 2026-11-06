@@ -83,24 +83,24 @@ checksum = "sha256:6b4e61c8cd27d99e5a801e63ff25dd5c70b36875c2cd659d3e9ce6b76fc23
 url = "https://get.helm.sh/helm-v4.3.1-darwin-arm64.tar.gz"
 
 [[tools.spectral]]
-version = "6.17.0"
+version = "6.17.1"
 backend = "aqua:stoplightio/spectral"
-specifiers = ["6.17.0"]
+specifiers = ["6.17.1"]
 
 [tools.spectral."platforms.linux-arm64"]
-checksum = "sha256:27eb1c2880dba43c9cbebb5d10bfbacd7d359428b64dd0d9659cf5e406808503"
+checksum = "sha256:730005664bbe95680f6b348790bb04da220e824b6e0a6768d16a1a988a86b31e"
 checksum_source = "mise-versions"
-url = "https://github.com/stoplightio/spectral/releases/download/v6.17.0/spectral-linux-arm64"
-url_api = "https://api.github.com/repos/stoplightio/spectral/releases/assets/604961212"
+url = "https://github.com/stoplightio/spectral/releases/download/v6.17.1/spectral-linux-arm64"
+url_api = "https://api.github.com/repos/stoplightio/spectral/releases/assets/716458713"
 
 [tools.spectral."platforms.linux-x64"]
-checksum = "sha256:e6244baecff57dfb89ba8379a09563270fbb4ac7f73fb8692510a6160059ec53"
+checksum = "sha256:0196c72234478e4e23df28b662afa7c9f80a47cfd31dc697e674151ad060bb35"
 checksum_source = "mise-versions"
-url = "https://github.com/stoplightio/spectral/releases/download/v6.17.0/spectral-linux-x64"
-url_api = "https://api.github.com/repos/stoplightio/spectral/releases/assets/604961338"
+url = "https://github.com/stoplightio/spectral/releases/download/v6.17.1/spectral-linux-x64"
+url_api = "https://api.github.com/repos/stoplightio/spectral/releases/assets/716458952"
 
 [tools.spectral."platforms.macos-arm64"]
-checksum = "sha256:cb7e1bd31d85a9920100d79e7ba138cc75cf529dfa8e7492c69affe52e38d142"
+checksum = "sha256:ac0814fa86af3b57bb802f2290bb74e558b9522b9928ef16ac26c0d01ae6f9c5"
 checksum_source = "mise-versions"
-url = "https://github.com/stoplightio/spectral/releases/download/v6.17.0/spectral-macos-arm64"
-url_api = "https://api.github.com/repos/stoplightio/spectral/releases/assets/604961325"
+url = "https://github.com/stoplightio/spectral/releases/download/v6.17.1/spectral-macos-arm64"
+url_api = "https://api.github.com/repos/stoplightio/spectral/releases/assets/716458719"
