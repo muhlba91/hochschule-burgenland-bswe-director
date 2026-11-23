@@ -4,7 +4,7 @@ import { Observable, tap } from 'rxjs';
 
 /**
  * Example Angular Service for handling Flow Director Authentication.
- * 
+ *
  * NOTE: In a production environment, the 'secret' should NEVER be in the frontend.
  * The frontend should ideally call a proxy or just receive the JWT from a secure backend.
  */

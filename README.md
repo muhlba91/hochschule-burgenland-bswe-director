@@ -1,10 +1,10 @@
 # Hochschule Burgenland - BSWE - Director
 
-[![](https://img.shields.io/github/license/muhlba91/hochschule-burgenland-bswe-director?style=for-the-badge)](LICENSE.md)
-[![](https://img.shields.io/github/actions/workflow/status/muhlba91/hochschule-burgenland-bswe-director/verify.yml?style=for-the-badge)](https://github.com/muhlba91/hochschule-burgenland-bswe-director/actions/workflows/verify.yml)
-[![](https://img.shields.io/coverallsCoverage/github/muhlba91/hochschule-burgenland-bswe-director?style=for-the-badge)](https://github.com/muhlba91/hochschule-burgenland-bswe-director/)
-[![](https://api.scorecard.dev/projects/github.com/muhlba91/hochschule-burgenland-bswe-director/badge?style=for-the-badge)](https://scorecard.dev/viewer/?uri=github.com/muhlba91/hochschule-burgenland-bswe-director)
-[![](https://img.shields.io/github/release-date/muhlba91/hochschule-burgenland-bswe-director?style=for-the-badge)](https://github.com/muhlba91/hochschule-burgenland-bswe-director/releases)
+[![License](https://img.shields.io/github/license/muhlba91/hochschule-burgenland-bswe-director?style=for-the-badge)](LICENSE.md)
+[![Verify](https://img.shields.io/github/actions/workflow/status/muhlba91/hochschule-burgenland-bswe-director/verify.yml?style=for-the-badge)](https://github.com/muhlba91/hochschule-burgenland-bswe-director/actions/workflows/verify.yml)
+[![Coverage](https://img.shields.io/coverallsCoverage/github/muhlba91/hochschule-burgenland-bswe-director?style=for-the-badge)](https://github.com/muhlba91/hochschule-burgenland-bswe-director/)
+[![Scorecard](https://api.scorecard.dev/projects/github.com/muhlba91/hochschule-burgenland-bswe-director/badge?style=for-the-badge)](https://scorecard.dev/viewer/?uri=github.com/muhlba91/hochschule-burgenland-bswe-director)
+[![Release date](https://img.shields.io/github/release-date/muhlba91/hochschule-burgenland-bswe-director?style=for-the-badge)](https://github.com/muhlba91/hochschule-burgenland-bswe-director/releases)
 
 **Flow Director** is a generic, high-concurrency Go-based service designed to orchestrate state-machine flows. It serves as a central middleware hub, bridging real-time clients (WebSockets) and external player/agent microservices (HTTP POST callbacks) using a highly modular registry.
 
@@ -41,7 +41,7 @@ Communication with player or automated agent microservices occurs asynchronously
 
 ## Supported Flows
 
-The director is designed to be easily extensible. 
+The director is designed to be easily extensible.
 
 ### Pokémon Game Flow
 
@@ -73,7 +73,7 @@ The director supports a turn-based Pokémon card game flow. It registers game lo
 | `CALLBACK_AUTH_ENABLED`   | Enable HMAC verification for incoming callbacks.                   | `false`                 |
 | `AUTH_ENABLED`            | Enable JWT authentication for WebSocket connections.               | `false`                 |
 | `AUTH_SECRET`             | Secret for signing JWT tokens and verifying API keys.              | *(empty)*               |
-| `TOKEN_TTL`               | JWT token expiration time in seconds.                              | `86400`                  |
+| `TOKEN_TTL`               | JWT token expiration time in seconds.                              | `86400`                 |
 
 ### Development
 

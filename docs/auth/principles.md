@@ -28,7 +28,7 @@ The WebSocket connection requires a JWT for authentication. Since the frontends 
    ```json
    {
      "clientID": "team-01",
-     "apiKey": "..." 
+     "apiKey": "..."
    }
     ```
 

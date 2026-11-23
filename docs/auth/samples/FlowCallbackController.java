@@ -11,7 +11,7 @@ import java.util.HexFormat;
 /**
  * Example Spring Boot Controller handling the Flow Director callback and
  * Authentication.
- * 
+ *
  * This sample shows:
  * 1. API Key Generation (Team initialization)
  * 2. Receiving a request from the Director with an 'X-Callback-Secret'.
@@ -35,7 +35,7 @@ public class FlowCallbackController {
 
     /**
      * The Director calls this endpoint when action is required.
-     * 
+     *
      * @param callbackSecret The secret provided by the Director for this specific
      *                       request.
      * @param body           The request body containing session info and the
